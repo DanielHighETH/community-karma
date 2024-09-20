@@ -1,8 +1,7 @@
 module karma_tech::note_reporting {
-    use aptos_std::ed25519;
+    use aptos_framework::coin;
     use aptos_framework::account;
-    use aptos_framework::resource_account;
-    use aptos_framework::object;
+    use aptos_std::ed25519;
     use aptos_std::vector;
     use aptos_std::string::{String, utf8};
     use aptos_std::option;
@@ -10,7 +9,7 @@ module karma_tech::note_reporting {
     struct ModuleData has key {
         admin_address: address,
         min_stake_amount: u64,
-        staked_apt_token_ref: object::ResourceRef, // Reference to APT tokens
+        staked_apt_token_ref: coin::Coin<aptos_std::aptos::AptosToken>, // Use AptosToken here
     }
 
     struct NoteStatus has key, store {
@@ -26,7 +25,7 @@ module karma_tech::note_reporting {
         move_to(admin, ModuleData {
             admin_address: signer::address_of(admin),
             min_stake_amount,
-            staked_apt_token_ref: object::create_resource_ref(),
+            staked_apt_token_ref: coin::create<aptos_std::aptos::AptosToken>(0), // Initialize with 0 tokens
         });
     }
 
@@ -51,8 +50,9 @@ module karma_tech::note_reporting {
         // Check if the staked amount is sufficient
         assert!(amount >= module_data.min_stake_amount, error::insufficient_funds(EINSUFFICIENT_STAKE));
 
-        // Handle staking of APT tokens (transfer to the contract, implementation needed)
-        let _ = object::transfer_resource(&module_data.staked_apt_token_ref, sender_address, amount);
+        // Transfer APT tokens to the contract
+        let sender_coin_ref = coin::borrow_global<aptos_std::aptos::AptosToken>(sender_address);
+        coin::transfer(sender_coin_ref, &module_data.staked_apt_token_ref, amount);
 
         // Update note status
         move_to(sender, NoteStatus {
