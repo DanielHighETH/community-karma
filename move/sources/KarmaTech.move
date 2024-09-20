@@ -1,6 +1,5 @@
 module karma_tech::note_reporting {
     use aptos_framework::coin;
-    use aptos_framework::account;
     use aptos_std::ed25519;
     use aptos_std::vector;
     use aptos_std::string::{String, utf8};
@@ -14,7 +13,7 @@ module karma_tech::note_reporting {
 
     struct NoteStatus has key, store {
         is_reported: bool,
-        reason_id: u64,
+        reasons: vector<u64>, // Vector of reason IDs
     }
 
     const EINVALID_ADMIN: u64 = 1;
@@ -55,10 +54,13 @@ module karma_tech::note_reporting {
         coin::transfer(sender_coin_ref, &module_data.staked_apt_token_ref, amount);
 
         // Update note status
-        move_to(sender, NoteStatus {
-            is_reported: true,
-            reason_id,
-        });
+        let mut note_status = borrow_global_mut<NoteStatus>(note_id);
+
+        // Add reason ID if not already present
+        if !vector::contains(&note_status.reasons, reason_id) {
+            vector::push_back(&mut note_status.reasons, reason_id);
+        }
+        note_status.is_reported = true;
     }
 
     // Retrieve note status by ID
