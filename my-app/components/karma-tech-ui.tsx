@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 // Mock data
 const users = [
@@ -11,9 +12,17 @@ const users = [
   { id: 5, name: 'gainzy', username: 'gainzy222', avatar: 'gainzy222.jpg', bio: 'Building.' },
 ]
 
+type User = {
+  id: number;
+  name: string;
+  username: string;
+  avatar: string;
+  bio: string;
+} | null;
 
 export function KarmaTechUi() {
-  const [selectedUser, setSelectedUser] = useState(null)
+  const [selectedUser, setSelectedUser] = useState(null as User)
+
   const UserList = () => (
     <Card className="w-full bg-white/90 backdrop-blur-sm">
       <CardHeader>
@@ -26,6 +35,10 @@ export function KarmaTechUi() {
             <li key={user.id} className="cursor-pointer" onClick={() => setSelectedUser(user)}>
               <Card className="hover:shadow-lg transition-shadow duration-200">
                 <CardHeader className="flex flex-row items-center gap-4">
+                  <Avatar className="w-16 h-16">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>{user.name[0]}</AvatarFallback>
+                  </Avatar>
                   <div>
                     <CardTitle className="text-xl">{user.name}</CardTitle>
                     <CardDescription className="text-lg">@{user.username}</CardDescription>
