@@ -11,10 +11,11 @@ import { Twitter, MessageSquare, ThumbsUp, Share2 } from 'lucide-react'
 // Mock data
 const users = [
   { id: 1, name: 'Keyboard Monkey -KBM-', username: 'KeyboardMonkey3', avatar: 'KeyboardMonkey3.jpg', bio: `🦍 multi-disciplinary degenerate. not financial advice, not real advice. advisor @evincowinerydao, @tensor_hq, co-host @rektradio_` },
-  { id: 2, name: 'cobie ) ) ) )', username: 'cobie', avatar: 'cobie.jpg', bio: '@echodotxyz' },
+  { id: 2, name: 'olimpio', username: 'OlimpioCrypto', avatar: 'OlimpioCrypto.png', bio: 'Sharing cryptocurrency events, yield farming, DeFi, & airdrop strategies. Daily news: @AlphaPackedHQ. Investing: @OlimpioCapital. Finding airdrops: @earndrop_io' },
   { id: 3, name: 'Mo Shaikh 🌐 aptOS', username: 'moshaikhs', avatar: 'moshaikhs.jpg', bio: 'Cofounder, CEO @aptoslabs prev. @Meta @BCG @BlackRock @ConsenSys @MeridioRE' },
   { id: 4, name: 'Ansem 🐂🀄️', username: 'blknoiz06', avatar: 'blknoiz06.jpg', bio: 'coldest ni**a breathing | @BullpenFi | telegram @blknoiz06 | ig @blknoiz_06 | all other clone accounts are scams' },
-  { id: 5, name: 'gainzy', username: 'gainzy222', avatar: 'gainzy222.jpg', bio: 'Building.' },
+  { id: 5, name: 'il Capo Of Crypto', username: 'CryptoCapo_', avatar: 'CryptoCapo_.jpg', bio: `#Crypto analyst, Swing Trader and Long-term Investor since Feb 2017 | Not financial advice |I will never DM you first. Free TG: http://t.me/CryptoCapoTG` },
+  { id: 6, name: 'wallstreetbets', username: 'wallstreetbets', avatar: 'wallstreetbets.jpg', bio: 'Like 4chan found a Bloomberg terminal.' },
 ]
 
 const comments = [
@@ -65,12 +66,12 @@ export function KarmaTechUi() {
                     <AvatarFallback>{user.name[0]}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <CardTitle className="text-xl">{user.name}</CardTitle>
+                    <CardTitle className="text-xl line-clamp-1">{user.name}</CardTitle>
                     <CardDescription className="text-lg">@{user.username}</CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600">{user.bio}</p>
+                  <p className="text-sm text-gray-600 line-clamp-2">{user.bio}</p>
                 </CardContent>
               </Card>
             </li>
