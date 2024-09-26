@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import { Input } from "@/components/ui/input" // Assuming you have this Input component
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Twitter, MessageSquare, ThumbsUp, Share2 } from 'lucide-react'
+import { Twitter, MessageSquare, ThumbsUp, Share2, Search } from 'lucide-react'
 
 // Mock data
 const users = [
@@ -14,7 +15,7 @@ const users = [
   { id: 2, name: 'olimpio', username: 'OlimpioCrypto', avatar: 'OlimpioCrypto.png', bio: 'Sharing cryptocurrency events, yield farming, DeFi, & airdrop strategies. Daily news: @AlphaPackedHQ. Investing: @OlimpioCapital. Finding airdrops: @earndrop_io' },
   { id: 3, name: 'Mo Shaikh 🌐 aptOS', username: 'moshaikhs', avatar: 'moshaikhs.jpg', bio: 'Cofounder, CEO @aptoslabs prev. @Meta @BCG @BlackRock @ConsenSys @MeridioRE' },
   { id: 4, name: 'Ansem 🐂🀄️', username: 'blknoiz06', avatar: 'blknoiz06.jpg', bio: 'coldest ni**a breathing | @BullpenFi | telegram @blknoiz06 | ig @blknoiz_06 | all other clone accounts are scams' },
-  { id: 5, name: 'il Capo Of Crypto', username: 'CryptoCapo_', avatar: 'CryptoCapo_.jpg', bio: `#Crypto analyst, Swing Trader and Long-term Investor since Feb 2017 | Not financial advice |I will never DM you first. Free TG: http://t.me/CryptoCapoTG` },
+  { id: 5, name: 'il Capo Of Crypto', username: 'CryptoCapo_', avatar: 'CryptoCapo_.jpg', bio: `#Crypto analyst, Swing Trader and Long-term Investor since Feb 2017 | Not financial advice | I will never DM you first. Free TG: http://t.me/CryptoCapoTG` },
   { id: 6, name: 'wallstreetbets', username: 'wallstreetbets', avatar: 'wallstreetbets.jpg', bio: 'Like 4chan found a Bloomberg terminal.' },
 ]
 
@@ -34,9 +35,15 @@ type User = {
 } | null;
 
 export function KarmaTechUi() {
-  const [selectedUser, setSelectedUser] = useState(null as User)
+  const [selectedUser, setSelectedUser] = useState<User>(null)
+  const [searchTerm, setSearchTerm] = useState('')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [comment, setComment] = useState('')
+
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.username.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   const handleLogin = () => {
     // Simulating Twitter login
@@ -49,6 +56,10 @@ export function KarmaTechUi() {
     setComment('')
   }
 
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+  }, []);
+
   const UserList = () => (
     <Card className="w-full bg-white/90 backdrop-blur-sm">
       <CardHeader>
@@ -56,8 +67,20 @@ export function KarmaTechUi() {
         <CardDescription className="text-xl text-center">Connect and comment on profiles</CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 py-2"
+            />
+          </div>
+        </div>
         <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {users.map(user => (
+          {filteredUsers.map(user => (
             <li key={user.id} className="cursor-pointer" onClick={() => setSelectedUser(user)}>
               <Card className="hover:shadow-lg transition-shadow duration-200">
                 <CardHeader className="flex flex-row items-center gap-4">
@@ -89,10 +112,10 @@ export function KarmaTechUi() {
             <AvatarImage src={user?.avatar} alt={user?.name} />
             <AvatarFallback>{user?.name[0]}</AvatarFallback>
           </Avatar>
-          <div className="text-center md:text-left">
+          <div className="text-center md:text-left w-full">
             <CardTitle className="text-3xl mb-2">{user?.name}</CardTitle>
             <CardDescription className="text-xl mb-4">@{user?.username}</CardDescription>
-            <p className="text-lg text-gray-700">{user?.bio}</p>
+            <p className="text-lg text-gray-700 w-3/4">{user?.bio}</p>
           </div>
         </div>
       </CardHeader>
