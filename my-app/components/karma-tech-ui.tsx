@@ -22,7 +22,24 @@ import {
 import { Twitter, MessageSquare, ThumbsUp, Share2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const users = [
+type User = {
+  id: number;
+  name: string;
+  username: string;
+  avatar: string;
+  bio: string;
+};
+
+type Comment = {
+  id: number;
+  targetid: number;
+  author: string;
+  content: string;
+  likes: number;
+  timestamp: string;
+};
+
+const users: User[] = [
   {
     id: 1,
     name: "Keyboard Monkey -KBM-",
@@ -119,46 +136,8 @@ const users = [
     name: "Luca Netz 🐧✳️",
     username: "LucaNetz",
     avatar: "LucaNetz.jpg",
-    bio: "CStriving for Greatness. @pudgypenguins @iglooinc @abstractchain"
+    bio: "Striving for Greatness. @pudgypenguins @iglooinc @abstractchain"
   }
-];
-
-const comments = [
-  {
-    id: 1,
-    userId: 1,
-    author: "Bob Smith",
-    content:
-      "Great profile, Alice! Your recent project on sustainable energy was truly inspiring.",
-    likes: 15,
-    timestamp: "2 hours ago",
-  },
-  {
-    id: 2,
-    userId: 1,
-    author: "Carol Williams",
-    content:
-      "Love your work, Alice! Your insights on AI ethics are always thought-provoking.",
-    likes: 8,
-    timestamp: "1 day ago",
-  },
-  {
-    id: 3,
-    userId: 2,
-    author: "Alice Johnson",
-    content: `Bob, you're awesome! Your dedication to open-source projects is admirable.`,
-    likes: 12,
-    timestamp: "3 days ago",
-  },
-  {
-    id: 4,
-    userId: 1,
-    author: "David Brown",
-    content:
-      "Alice, your recent talk at the tech conference was a game-changer. Keep up the great work!",
-    likes: 20,
-    timestamp: "1 week ago",
-  },
 ];
 
 // SearchInput component
@@ -186,8 +165,8 @@ const UserList = ({
   filteredUsers,
   onSelectUser,
 }: {
-  filteredUsers: any[];
-  onSelectUser: (user: any) => void;
+  filteredUsers: User[];
+  onSelectUser: (user: User) => void;
 }) => (
   <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[calc(2*12rem)]">
     {filteredUsers.map((user) => (
@@ -227,6 +206,7 @@ export function KarmaTechUi() {
   const [comment, setComment] = useState("");
   const [shuffledUsers, setShuffledUsers] = useState<any[]>([]);
   const [displayUsers, setDisplayUsers] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[] | null>(null);
 
   const shuffleArray = (array: any[]) => {
     const shuffledArray = [...array];
@@ -241,6 +221,13 @@ export function KarmaTechUi() {
    const shuffled = shuffleArray(users);
     setShuffledUsers(shuffled);
     setDisplayUsers(shuffled);
+
+    fetch("/api/init-data")
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Comments fetched:", data);
+        setComments(data);
+      });
   }, []);
 
   // Handle search input change
@@ -263,7 +250,7 @@ export function KarmaTechUi() {
     setComment("");
   };
 
-  const ProfileView = ({ user }: { user: any }) => (
+  const ProfileView = ({ user }: { user: User }) => (
     <Card className="w-full bg-white/90 backdrop-blur-sm">
       <CardHeader className="border-b">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -283,8 +270,12 @@ export function KarmaTechUi() {
       <CardContent className="pt-6">
         <h3 className="text-2xl font-semibold mb-6">Comments</h3>
         <ul className="space-y-6">
-          {comments
-            .filter((c) => c.userId === user?.id)
+          {!comments ?  (
+            <p className="text-gray-500 text-center mt-16 mb-16">Loading...</p>
+          ) : comments.filter((c) => c.targetid === user?.id).length === 0 ? (
+            <p className="text-gray-500 text-center mt-16 mb-16">No comments found</p>
+          ) : comments
+            .filter((c) => c.targetid === user?.id)
             .map((comment) => (
               <li
                 key={comment.id}
@@ -327,13 +318,12 @@ export function KarmaTechUi() {
             <DialogHeader>
               <DialogTitle className="text-2xl">Leave a Comment</DialogTitle>
               <DialogDescription className="text-lg">
-                {!isLoggedIn && "Connect with Twitter to leave a comment"}
+                {!isLoggedIn && "Connect with your wallet to leave a comment"}
               </DialogDescription>
             </DialogHeader>
             {!isLoggedIn ? (
               <Button size="lg" onClick={handleLogin} className="text-lg">
-                <Twitter className="mr-2 h-5 w-5" />
-                Connect with Twitter
+                Connect with your wallet
               </Button>
             ) : (
               <div className="space-y-4">
@@ -378,11 +368,11 @@ export function KarmaTechUi() {
             </div>
             <Card className="w-full bg-white/90 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-4xl font-bold text-center mb-4">
+                <CardTitle className="text-4xl font-bold text-center mt-4">
                   karma.tech
                 </CardTitle>
                 <CardDescription className="text-xl text-center">
-                  Connect and comment on profiles
+                  truth index of your favorite crypto influencers
                 </CardDescription>
               </CardHeader>
               <CardContent>
