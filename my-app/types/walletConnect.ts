@@ -1,6 +1,7 @@
 export interface SignedMessageResponse {
   signature: string;
   fullMessage: string;
+  address: string;
 }
 
 export interface WalletConnectReturn {

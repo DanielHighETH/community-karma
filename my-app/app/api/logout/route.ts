@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const response = NextResponse.json({}, { status: 200 });
+    const response = NextResponse.json({success: true}, { status: 200 });
 
     response.cookies.set("auth-token", "", {
       httpOnly: true,
@@ -14,7 +14,7 @@ export async function GET() {
     return response;
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }

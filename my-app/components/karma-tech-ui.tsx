@@ -330,26 +330,22 @@ export function KarmaTechUi() {
                 <>
                   {isLoggedIn ? (
                     <>
-                    <div className="space-y-4">
-                      <Textarea
-                        placeholder="Your comment..."
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        className="text-lg"
-                        rows={4}
-                      />
-                      <Button size="lg" onClick={handleComment} className="text-lg">
-                        Submit Comment
-                      </Button>
-                    </div>
-                    <div>
-                      <p>
-                        Logged in as: {address}
+                      <div className="space-y-4">
+                        <Textarea
+                          placeholder="Your comment..."
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          className="text-lg"
+                          rows={4}
+                        />
+                        <Button size="lg" onClick={handleComment} className="text-lg w-full">
+                          Submit Comment
+                        </Button>
+                      </div>
+                      <p className="flex justify-between items-center">
+                        <span>Logged in as: {address}</span>
+                        <span onClick={disconnectWallet} className="cursor-pointer">Logout</span>
                       </p>
-                      <button onClick={disconnectWallet}>
-                        Disconnect Wallet / Logout
-                      </button>
-                    </div>
                     </>
                   ) : (
                     <Button size="lg" onClick={connectWallet} className="text-lg">

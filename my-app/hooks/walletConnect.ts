@@ -7,12 +7,11 @@ import {
   WalletConnectReturn,
 } from "../types/walletConnect";
 import crypto from "crypto";
+import { shortenAddress } from '@/lib/utils';
 
 const walletConnect = (): WalletConnectReturn => {
   const [walletAvailable, setWalletAvailable] = useState<boolean>(false);
   const [address, setAddress] = useState<string | null>(null);
-  const [signedMessage, setSignedMessage] =
-    useState<SignedMessageResponse | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
@@ -31,8 +30,8 @@ const walletConnect = (): WalletConnectReturn => {
 
       const data = await response.json();
 
-      if (data.loggedIn) {
-        setAddress(data.address);
+      if (data.loggedIn) {        
+        setAddress(shortenAddress(data.address));
         setIsLoggedIn(true);
       } else {
         setIsLoggedIn(false);
@@ -46,7 +45,8 @@ const walletConnect = (): WalletConnectReturn => {
   const connectWallet = async (): Promise<void> => {
     try {
       const response = await window.aptos.connect();
-      setAddress(response.address);
+      
+      setAddress(shortenAddress(response.address));
       signMessage();
     } catch (error) {
       console.error("Error connecting to Petra Wallet:", error);
@@ -61,12 +61,13 @@ const walletConnect = (): WalletConnectReturn => {
       const response: SignedMessageResponse = await window.aptos.signMessage({
         message,
         nonce,
-      });
+      });      
 
-      setSignedMessage(response);
       await verifyMessage(response);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error signing the message:", error);
+      console.log(error.message);
+      
     }
   };
 
@@ -81,10 +82,10 @@ const walletConnect = (): WalletConnectReturn => {
         new TextEncoder().encode(response.fullMessage),
         new HexString(response.signature).toUint8Array(),
         new HexString(key).toUint8Array()
-      );
+      );      
 
       if (verified) {
-        await generateJWT(address!);
+        await generateJWT(response.address);
       } else {
         throw new Error("Message verification failed.");
       }
@@ -106,7 +107,7 @@ const walletConnect = (): WalletConnectReturn => {
       const data = await response.json();
       if (data.success) {
         console.log("JWT token generated");
-        setIsLoggedIn(true);
+        checkSession();
       } else {
         console.error("Failed to generate JWT token.");
       }
@@ -125,8 +126,7 @@ const walletConnect = (): WalletConnectReturn => {
 
       const data = await response.json();
       if (data.success) {
-        setAddress(null);
-        setIsLoggedIn(false);
+        checkSession();
         console.log("Logged out successfully");
       } else {
         console.error("Failed to log out.");
@@ -135,12 +135,6 @@ const walletConnect = (): WalletConnectReturn => {
       console.error("Error during disconnect and logout:", error);
     }
   };
-
-  useEffect(() => {
-    if (address && !signedMessage) {
-      signMessage();
-    }
-  }, [address]);
 
   return {
     walletAvailable,
