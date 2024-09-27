@@ -25,7 +25,7 @@ export const queryDatabase = async (queryText: string, params = []) => {
   }
 }
 
-export const updateDatabase = async (queryText: string, params = []) => {
+export const updateDatabase = async (queryText: string, params: any[] = []) => {
   const client = createClient();
   try {
     await client.connect();

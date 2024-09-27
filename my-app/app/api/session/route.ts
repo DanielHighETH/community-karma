@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ loggedIn: false }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET) as jwt.JwtPayload;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as jwt.JwtPayload;
 
     return NextResponse.json({
       loggedIn: true,

@@ -252,7 +252,15 @@ export function KarmaTechUi() {
 
   const handleComment = () => {
     console.log("Comment submitted:", comment);
-    setComment("");
+    const newComment = [{
+      id: comments ? comments.length + 1 : 1,
+      targetid: selectedUser.id,
+      author: address as string,
+      content: comment,
+      likes: 0,
+      timestamp: new Date().toISOString(),
+    }]
+    setComments([...comments as Comment[], ...newComment]);
   };
 
   const ProfileView = ({ user }: { user: User }) => (
