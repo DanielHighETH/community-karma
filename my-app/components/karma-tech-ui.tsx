@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -22,7 +22,6 @@ import {
 import { Twitter, MessageSquare, ThumbsUp, Share2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Mock data
 const users = [
   {
     id: 1,
@@ -66,6 +65,62 @@ const users = [
     avatar: "wallstreetbets.jpg",
     bio: "Like 4chan found a Bloomberg terminal.",
   },
+  {
+    id: 7,
+    name: "greg",
+    username: "greg16676935420",
+    avatar: "greg16676935420.jpg",
+    bio: "im greg I like football and stocks and my birthday im from kentuckey. I'm a investor. I like to golf at the golf course @gregmultiverse • subscribe for $1 ⤴️"
+  },
+  {
+    id: 8,
+    name: "TylerD 🧙‍♂️",
+    username: "Tyler_Did_It",
+    avatar: "Tyler_Did_It.jpg",
+    bio: "NFT & Crypto news & analysis | @LuckyTraderHQ | @RugRadio | @fomohour at 10 am; Lucky Lead at 11 am | Writing The Morning Minute for 7,000+ readers | Pengu Maxi"
+  },
+  {
+    id: 9,
+    name: "Sisyphus",
+    username: "0xSisyphus",
+    avatar: "0xSisyphus.jpg",
+    bio: "Roll boulder up hill, it rolls back down."
+  },
+  {
+    id: 10,
+    name: "GCR",
+    username: "GiganticRebirth",
+    avatar: "GiganticRebirth.jpg",
+    bio: "He who chases two rabbits catches neither"
+  },
+  {
+    id: 11,
+    name: "nader dabit",
+    username: "dabit3",
+    avatar: "dabit3.jpg",
+    bio: "🇵🇸 // devrel + dx @eigenlayer @eigen_da // react, ai, & on-chain // prev @avara @celestiaorg @awscloud // contributing @lensprotocol // 🫂 @developer_dao"
+  },
+  {
+    id: 12,
+    name: "Beanie",
+    username: "beaniemaxi",
+    avatar: "beaniemaxi.jpg",
+    bio: "Crypto native since the early days. Went all in on DeFi summer. Tripled down on NFTs before it became big. No paid promos. Not financial advice. I talk my book."
+  },
+  {
+    id: 13,
+    name: "Frank (degod mode)",
+    username: "frankdegods",
+    avatar: "frankdegods.jpg",
+    bio: "social experimenter @degodsnft"
+  },
+  {
+    id: 14,
+    name: "Luca Netz 🐧✳️",
+    username: "LucaNetz",
+    avatar: "LucaNetz.jpg",
+    bio: "CStriving for Greatness. @pudgypenguins @iglooinc @abstractchain"
+  }
 ];
 
 const comments = [
@@ -121,7 +176,7 @@ const SearchInput = ({
       placeholder="Search users..."
       value={searchTerm}
       onChange={onSearchChange}
-      className="pl-10 py-2"
+      className="pl-10 py-2 rounded-md focus:outline-none focus:ring-0"
     />
   </div>
 );
@@ -134,7 +189,7 @@ const UserList = ({
   filteredUsers: any[];
   onSelectUser: (user: any) => void;
 }) => (
-  <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[calc(2*12rem)]">
     {filteredUsers.map((user) => (
       <li
         key={user.id}
@@ -170,16 +225,32 @@ export function KarmaTechUi() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [comment, setComment] = useState("");
+  const [shuffledUsers, setShuffledUsers] = useState<any[]>([]);
+  const [displayUsers, setDisplayUsers] = useState<any[]>([]);
 
-  // Filter users based on search input
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const shuffleArray = (array: any[]) => {
+    const shuffledArray = [...array];
+    for (let i = shuffledArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
+    }
+    return shuffledArray;
+  }
+
+  useEffect(() => {
+   const shuffled = shuffleArray(users);
+    setShuffledUsers(shuffled);
+    setDisplayUsers(shuffled);
+  }, []);
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("Search term:", e.target.value);
+    setDisplayUsers(shuffledUsers.filter(
+    (user) =>
+      user.name.toLowerCase().includes(e.target.value.toLowerCase()) ||
+      user.username.toLowerCase().includes(e.target.value.toLowerCase())
+  ));
     setSearchTerm(e.target.value);
   };
 
@@ -298,28 +369,30 @@ export function KarmaTechUi() {
         {selectedUser ? (
           <ProfileView user={selectedUser} />
         ) : (
-          <Card className="w-full bg-white/90 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-4xl font-bold text-center mb-4">
-                karma.tech
-              </CardTitle>
-              <CardDescription className="text-xl text-center">
-                Connect and comment on profiles
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6">
-                <SearchInput
-                  searchTerm={searchTerm}
-                  onSearchChange={handleSearchChange}
+          <>
+            <div className="mb-6 flex justify-end text-black">
+                  <SearchInput
+                    searchTerm={searchTerm}
+                    onSearchChange={handleSearchChange}
+                  />
+            </div>
+            <Card className="w-full bg-white/90 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-4xl font-bold text-center mb-4">
+                  karma.tech
+                </CardTitle>
+                <CardDescription className="text-xl text-center">
+                  Connect and comment on profiles
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UserList
+                  filteredUsers={displayUsers.slice(0, 6)}
+                  onSelectUser={setSelectedUser}
                 />
-              </div>
-              <UserList
-                filteredUsers={filteredUsers}
-                onSelectUser={setSelectedUser}
-              />
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
     </div>
