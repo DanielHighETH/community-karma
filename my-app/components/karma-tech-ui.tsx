@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, memo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -17,13 +17,12 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { MessageSquare, ThumbsUp, Share2, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import walletConnect from '@/hooks/walletConnect';
-import moment from 'moment';
-import { shortenAddress } from '@/lib/utils';
+import walletConnect from "@/hooks/walletConnect";
+import moment from "moment";
+import { shortenAddress } from "@/lib/utils";
 
 type User = {
   id: number;
@@ -37,7 +36,7 @@ type Comment = {
   id: number;
   targetId: number;
   author: string;
-  authorAddress: string
+  authorAddress: string;
   content: string;
   likes: number;
   timestamp: string;
@@ -91,60 +90,59 @@ const users: User[] = [
     name: "greg",
     username: "greg16676935420",
     avatar: "greg16676935420.jpg",
-    bio: "im greg I like football and stocks and my birthday im from kentuckey. I'm a investor. I like to golf at the golf course @gregmultiverse • subscribe for $1 ⤴️"
+    bio: "im greg I like football and stocks and my birthday im from kentuckey. I'm a investor. I like to golf at the golf course @gregmultiverse • subscribe for $1 ⤴️",
   },
   {
     id: 8,
     name: "TylerD 🧙‍♂️",
     username: "Tyler_Did_It",
     avatar: "Tyler_Did_It.jpg",
-    bio: "NFT & Crypto news & analysis | @LuckyTraderHQ | @RugRadio | @fomohour at 10 am; Lucky Lead at 11 am | Writing The Morning Minute for 7,000+ readers | Pengu Maxi"
+    bio: "NFT & Crypto news & analysis | @LuckyTraderHQ | @RugRadio | @fomohour at 10 am; Lucky Lead at 11 am | Writing The Morning Minute for 7,000+ readers | Pengu Maxi",
   },
   {
     id: 9,
     name: "Sisyphus",
     username: "0xSisyphus",
     avatar: "0xSisyphus.jpg",
-    bio: "Roll boulder up hill, it rolls back down."
+    bio: "Roll boulder up hill, it rolls back down.",
   },
   {
     id: 10,
     name: "GCR",
     username: "GiganticRebirth",
     avatar: "GiganticRebirth.jpg",
-    bio: "He who chases two rabbits catches neither"
+    bio: "He who chases two rabbits catches neither",
   },
   {
     id: 11,
     name: "nader dabit",
     username: "dabit3",
     avatar: "dabit3.jpg",
-    bio: "🇵🇸 // devrel + dx @eigenlayer @eigen_da // react, ai, & on-chain // prev @avara @celestiaorg @awscloud // contributing @lensprotocol // 🫂 @developer_dao"
+    bio: "🇵🇸 // devrel + dx @eigenlayer @eigen_da // react, ai, & on-chain // prev @avara @celestiaorg @awscloud // contributing @lensprotocol // 🫂 @developer_dao",
   },
   {
     id: 12,
     name: "Beanie",
     username: "beaniemaxi",
     avatar: "beaniemaxi.jpg",
-    bio: "Crypto native since the early days. Went all in on DeFi summer. Tripled down on NFTs before it became big. No paid promos. Not financial advice. I talk my book."
+    bio: "Crypto native since the early days. Went all in on DeFi summer. Tripled down on NFTs before it became big. No paid promos. Not financial advice. I talk my book.",
   },
   {
     id: 13,
     name: "Frank (degod mode)",
     username: "frankdegods",
     avatar: "frankdegods.jpg",
-    bio: "social experimenter @degodsnft"
+    bio: "social experimenter @degodsnft",
   },
   {
     id: 14,
     name: "Luca Netz 🐧✳️",
     username: "LucaNetz",
     avatar: "LucaNetz.jpg",
-    bio: "Striving for Greatness. @pudgypenguins @iglooinc @abstractchain"
-  }
+    bio: "Striving for Greatness. @pudgypenguins @iglooinc @abstractchain",
+  },
 ];
 
-// SearchInput component
 const SearchInput = ({
   searchTerm,
   onSearchChange,
@@ -164,7 +162,6 @@ const SearchInput = ({
   </div>
 );
 
-// UserList component
 const UserList = ({
   filteredUsers,
   onSelectUser,
@@ -203,33 +200,217 @@ const UserList = ({
   </ul>
 );
 
+const ProfileView = memo(
+  ({
+    user,
+    comments,
+    addComment,
+    deleteComment,
+    setSelectedUser, // Receive setSelectedUser as a prop
+  }: {
+    user: User;
+    comments: Comment[] | null;
+    addComment: (comment: Comment) => void;
+    deleteComment: (id: number) => void;
+    setSelectedUser: (user: User | null) => void; // Define the type here
+  }) => {
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [commentText, setCommentText] = useState("");
+    const {
+      walletAvailable,
+      connectWallet,
+      disconnectWallet,
+      address,
+      isLoggedIn,
+    } = walletConnect();
+
+    const handleCommentSubmit = () => {
+      if (!commentText.trim()) {
+        console.error("Comment cannot be empty");
+        return;
+      }
+
+      const newComment: Comment = {
+        id: comments ? comments.length + 1 : 1,
+        targetId: user.id,
+        author: shortenAddress(address) as string,
+        authorAddress: address as string,
+        content: commentText,
+        likes: 0,
+        timestamp: new Date().toISOString(),
+      };
+
+      addComment(newComment);
+      setCommentText("");
+      setDialogOpen(false);
+    };
+
+    return (
+      <Card className="w-full bg-white/90 backdrop-blur-sm">
+        <CardHeader className="border-b">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+            <Avatar className="w-32 h-32 border-4 border-primary">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback>{user.name[0]}</AvatarFallback>
+            </Avatar>
+            <div className="text-center md:text-left w-full">
+              <CardTitle className="text-3xl mb-2">{user.name}</CardTitle>
+              <CardDescription className="text-xl mb-4">
+                @{user.username}
+              </CardDescription>
+              <p className="text-lg text-gray-700 w-3/4">{user.bio}</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <h3 className="text-2xl font-semibold mb-6">Comments</h3>
+          <ul className="space-y-6">
+            {!comments ? (
+              <p className="text-gray-500 text-center mt-16 mb-16">
+                Loading...
+              </p>
+            ) : comments.filter((c) => c.targetId === user.id).length === 0 ? (
+              <p className="text-gray-500 text-center mt-16 mb-16">
+                No comments found
+              </p>
+            ) : (
+              comments
+                .filter((c) => c.targetId === user.id)
+                .map((comment) => (
+                  <li
+                    key={comment.id}
+                    className="bg-gray-50 rounded-lg shadow-sm overflow-hidden"
+                  >
+                    <div className="p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="font-semibold text-lg text-primary">
+                          {comment.author}
+                        </p>
+                        <span className="text-sm text-gray-500">
+                          {moment(comment.timestamp).local().fromNow()}
+                        </span>
+                      </div>
+                      <p className="text-lg mb-4">{comment.content}</p>
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <button className="flex items-center gap-1 hover:text-primary transition-colors">
+                          <ThumbsUp className="w-4 h-4" />
+                          {comment.likes} Likes
+                        </button>
+                        <button className="flex items-center gap-1 hover:text-primary transition-colors">
+                          <Share2 className="w-4 h-4" />
+                          Share
+                        </button>
+                        {comment.authorAddress === address && (
+                          <button
+                            className="flex items-center gap-1 hover:text-primary transition-colors"
+                            onClick={() => deleteComment(comment.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))
+            )}
+          </ul>
+        </CardContent>
+        <CardFooter className="flex justify-between border-t pt-6">
+          <Button
+            size="lg"
+            className="text-lg"
+            onClick={() => setDialogOpen(true)}
+          >
+            <MessageSquare className="mr-2 h-5 w-5" />
+            Leave a Comment
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle className="text-2xl">Leave a Comment</DialogTitle>
+                <DialogDescription className="text-lg">
+                  {!isLoggedIn && "Connect with your wallet to leave a comment"}
+                </DialogDescription>
+              </DialogHeader>
+              {walletAvailable ? (
+                <>
+                  {isLoggedIn ? (
+                    <>
+                      <Textarea
+                        placeholder="Your comment..."
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        className="text-lg"
+                        rows={4}
+                      />
+                      <Button
+                        size="lg"
+                        onClick={handleCommentSubmit}
+                        className="text-lg w-full"
+                      >
+                        Submit Comment
+                      </Button>
+                      <p className="flex justify-between items-center">
+                        <span>Logged in as: {shortenAddress(address)}</span>
+                        <span
+                          onClick={disconnectWallet}
+                          className="cursor-pointer"
+                        >
+                          Logout
+                        </span>
+                      </p>
+                    </>
+                  ) : (
+                    <Button
+                      size="lg"
+                      onClick={connectWallet}
+                      className="text-lg"
+                    >
+                      Connect with your wallet
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p>Petra Wallet is not available. Please install it.</p>
+              )}
+            </DialogContent>
+          </Dialog>
+          <Button
+            variant="outline"
+            size="lg"
+            className="text-lg"
+            onClick={() => setSelectedUser(null)} // Use the function here
+          >
+            Back to List
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+);
+
 export function KarmaTechUi() {
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [comment, setComment] = useState("");
-  const [shuffledUsers, setShuffledUsers] = useState<any[]>([]);
-  const [displayUsers, setDisplayUsers] = useState<any[]>([]);
+  const [shuffledUsers, setShuffledUsers] = useState<User[]>([]);
+  const [displayUsers, setDisplayUsers] = useState<User[]>([]);
   const [comments, setComments] = useState<Comment[] | null>(null);
 
-  const {
-    walletAvailable,
-    connectWallet,
-    disconnectWallet,
-    address,
-    isLoggedIn,
-  } = walletConnect();
-
-  const shuffleArray = (array: any[]) => {
-    const shuffledArray = [...array];
-    for (let i = shuffledArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
-    }
-    return shuffledArray;
-  }
-
   useEffect(() => {
-   const shuffled = shuffleArray(users);
+    const shuffleArray = (array: any[]) => {
+      const shuffledArray = [...array];
+      for (let i = shuffledArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledArray[i], shuffledArray[j]] = [
+          shuffledArray[j],
+          shuffledArray[i],
+        ];
+      }
+      return shuffledArray;
+    };
+
+    const shuffled = shuffleArray(users);
     setShuffledUsers(shuffled);
     setDisplayUsers(shuffled);
 
@@ -251,43 +432,38 @@ export function KarmaTechUi() {
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("Search term:", e.target.value);
-    setDisplayUsers(shuffledUsers.filter(
-    (user) =>
-      user.name.toLowerCase().includes(e.target.value.toLowerCase()) ||
-      user.username.toLowerCase().includes(e.target.value.toLowerCase())
-  ));
-    setSearchTerm(e.target.value);
+    const value = e.target.value;
+    setSearchTerm(value);
+    setDisplayUsers(
+      shuffledUsers.filter(
+        (user) =>
+          user.name.toLowerCase().includes(value.toLowerCase()) ||
+          user.username.toLowerCase().includes(value.toLowerCase())
+      )
+    );
   };
 
-  const handleComment = () => {
-    const newComment = [{
-      id: comments ? comments.length + 1 : 1,
-      targetId: selectedUser.id,
-      author: shortenAddress(address) as string,
-      authorAddress: address as string,
-      content: comment,
-      likes: 0,
-      timestamp: new Date().toISOString(),
-    }]
-    setComments([...comments as Comment[], ...newComment]);
+  const addComment = (newComment: Comment) => {
+    setComments((prevComments) =>
+      prevComments ? [...prevComments, newComment] : [newComment]
+    );
 
+    // Optionally send to server
     fetch("/api/comment", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        targetId: selectedUser.id,
-        author: shortenAddress(address),
-        authorAddress: address,
-        content: comment,
-      }),
-    })
+      body: JSON.stringify(newComment),
+    });
   };
 
-  const handleDelete = (id: number) => {
-    setComments(comments?.filter((c) => c.id !== id) as Comment[]);
+  const deleteComment = (id: number) => {
+    setComments(
+      (prevComments) => prevComments?.filter((c) => c.id !== id) || null
+    );
+
+    // Optionally send to server
     fetch("/api/delete-comment", {
       method: "POST",
       headers: {
@@ -297,142 +473,24 @@ export function KarmaTechUi() {
     });
   };
 
-  const ProfileView = ({ user }: { user: User }) => (
-    <Card className="w-full bg-white/90 backdrop-blur-sm">
-      <CardHeader className="border-b">
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-          <Avatar className="w-32 h-32 border-4 border-primary">
-            <AvatarImage src={user?.avatar} alt={user?.name} />
-            <AvatarFallback>{user?.name[0]}</AvatarFallback>
-          </Avatar>
-          <div className="text-center md:text-left w-full">
-            <CardTitle className="text-3xl mb-2">{user?.name}</CardTitle>
-            <CardDescription className="text-xl mb-4">
-              @{user?.username}
-            </CardDescription>
-            <p className="text-lg text-gray-700 w-3/4">{user?.bio}</p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-6">
-        <h3 className="text-2xl font-semibold mb-6">Comments</h3>
-        <ul className="space-y-6">
-          {!comments ?  (
-            <p className="text-gray-500 text-center mt-16 mb-16">Loading...</p>
-          ) : comments.filter((c) => c.targetId === user?.id).length === 0 ? (
-            <p className="text-gray-500 text-center mt-16 mb-16">No comments found</p>
-          ) : comments
-            .filter((c) => c.targetId === user?.id)
-            .map((comment) => (
-              <li
-                key={comment.id}
-                className="bg-gray-50 rounded-lg shadow-sm overflow-hidden"
-              >
-                <div className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="font-semibold text-lg text-primary">
-                      {comment.author}
-                    </p>
-                    <span className="text-sm text-gray-500">
-                      {moment(comment.timestamp).local().fromNow()}
-                    </span>
-                  </div>
-                  <p className="text-lg mb-4">{comment.content}</p>
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <button className="flex items-center gap-1 hover:text-primary transition-colors">
-                      <ThumbsUp className="w-4 h-4" />
-                      {comment.likes} Likes
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-primary transition-colors">
-                      <Share2 className="w-4 h-4" />
-                      Share
-                    </button>
-                    {comment.authorAddress === address && (
-                      <button
-                        className="flex items-center gap-1 hover:text-primary transition-colors"
-                        onClick={() => handleDelete(comment.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-        </ul>
-      </CardContent>
-      <CardFooter className="flex justify-between border-t pt-6">
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button size="lg" className="text-lg">
-              <MessageSquare className="mr-2 h-5 w-5" />
-              Leave a Comment
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="text-2xl">Leave a Comment</DialogTitle>
-              <DialogDescription className="text-lg">
-                {!isLoggedIn && "Connect with your wallet to leave a comment"}
-              </DialogDescription>
-            </DialogHeader>
-            {walletAvailable ? (
-                <>
-                  {isLoggedIn ? (
-                    <>
-                      <div className="space-y-4">
-                        <Textarea
-                          placeholder="Your comment..."
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          className="text-lg"
-                          rows={4}
-                        />
-                        <Button size="lg" onClick={handleComment} className="text-lg w-full">
-                          Submit Comment
-                        </Button>
-                      </div>
-                      <p className="flex justify-between items-center">
-                        <span>Logged in as: {shortenAddress(address)}</span>
-                        <span onClick={disconnectWallet} className="cursor-pointer">Logout</span>
-                      </p>
-                    </>
-                  ) : (
-                    <Button size="lg" onClick={connectWallet} className="text-lg">
-                      Connect with your wallet
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <p>Petra Wallet is not available. Please install it.</p>
-              )}
-          </DialogContent>
-        </Dialog>
-        <Button
-          variant="outline"
-          size="lg"
-          className="text-lg"
-          onClick={() => setSelectedUser(null)}
-        >
-          Back to List
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-
   return (
     <div className="min-h-screen bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 flex items-center justify-center p-8">
       <div className="w-full max-w-6xl">
         {selectedUser ? (
-          <ProfileView user={selectedUser} />
+          <ProfileView
+            user={selectedUser}
+            comments={comments}
+            addComment={addComment}
+            deleteComment={deleteComment}
+            setSelectedUser={setSelectedUser} // Pass the function here
+          />
         ) : (
           <>
             <div className="mb-6 flex justify-end text-black">
-                  <SearchInput
-                    searchTerm={searchTerm}
-                    onSearchChange={handleSearchChange}
-                  />
+              <SearchInput
+                searchTerm={searchTerm}
+                onSearchChange={handleSearchChange}
+              />
             </div>
             <Card className="w-full bg-white/90 backdrop-blur-sm">
               <CardHeader>
@@ -440,7 +498,7 @@ export function KarmaTechUi() {
                   karma.tech
                 </CardTitle>
                 <CardDescription className="text-xl text-center">
-                  truth index of your favorite crypto influencers
+                  Truth index of your favorite crypto influencers
                 </CardDescription>
               </CardHeader>
               <CardContent>
