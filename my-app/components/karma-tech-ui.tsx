@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Twitter, MessageSquare, ThumbsUp, Share2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import walletConnect from '@/hooks/walletConnect';
 
 type User = {
   id: number;
@@ -202,11 +203,18 @@ const UserList = ({
 export function KarmaTechUi() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [comment, setComment] = useState("");
   const [shuffledUsers, setShuffledUsers] = useState<any[]>([]);
   const [displayUsers, setDisplayUsers] = useState<any[]>([]);
   const [comments, setComments] = useState<Comment[] | null>(null);
+
+  const {
+    walletAvailable,
+    connectWallet,
+    disconnectWallet,
+    address,
+    isLoggedIn,
+  } = walletConnect();
 
   const shuffleArray = (array: any[]) => {
     const shuffledArray = [...array];
@@ -239,10 +247,6 @@ export function KarmaTechUi() {
       user.username.toLowerCase().includes(e.target.value.toLowerCase())
   ));
     setSearchTerm(e.target.value);
-  };
-
-  const handleLogin = () => {
-    setIsLoggedIn(true);
   };
 
   const handleComment = () => {
@@ -321,24 +325,40 @@ export function KarmaTechUi() {
                 {!isLoggedIn && "Connect with your wallet to leave a comment"}
               </DialogDescription>
             </DialogHeader>
-            {!isLoggedIn ? (
-              <Button size="lg" onClick={handleLogin} className="text-lg">
-                Connect with your wallet
-              </Button>
-            ) : (
-              <div className="space-y-4">
-                <Textarea
-                  placeholder="Your comment..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="text-lg"
-                  rows={4}
-                />
-                <Button size="lg" onClick={handleComment} className="text-lg">
-                  Submit Comment
-                </Button>
-              </div>
-            )}
+            {walletAvailable ? (
+                <>
+                  {isLoggedIn ? (
+                    <>
+                    <div className="space-y-4">
+                      <Textarea
+                        placeholder="Your comment..."
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        className="text-lg"
+                        rows={4}
+                      />
+                      <Button size="lg" onClick={handleComment} className="text-lg">
+                        Submit Comment
+                      </Button>
+                    </div>
+                    <div>
+                      <p>
+                        Logged in as: {address}
+                      </p>
+                      <button onClick={disconnectWallet}>
+                        Disconnect Wallet / Logout
+                      </button>
+                    </div>
+                    </>
+                  ) : (
+                    <Button size="lg" onClick={connectWallet} className="text-lg">
+                      Connect with your wallet
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p>Petra Wallet is not available. Please install it.</p>
+              )}
           </DialogContent>
         </Dialog>
         <Button
