@@ -19,10 +19,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Twitter, MessageSquare, ThumbsUp, Share2, Search } from "lucide-react";
+import { MessageSquare, ThumbsUp, Share2, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import walletConnect from '@/hooks/walletConnect';
 import moment from 'moment';
+import { shortenAddress } from '@/lib/utils';
 
 type User = {
   id: number;
@@ -34,8 +35,9 @@ type User = {
 
 type Comment = {
   id: number;
-  targetid: number;
+  targetId: number;
   author: string;
+  authorAddress: string
   content: string;
   likes: number;
   timestamp: string;
@@ -234,8 +236,16 @@ export function KarmaTechUi() {
     fetch("/api/init-data")
       .then((res) => res.json())
       .then((data) => {
-        console.log("Comments fetched:", data);
-        setComments(data);
+        const comments = data.map((c: any) => ({
+          id: c.id,
+          targetId: c.target_id,
+          author: c.author,
+          authorAddress: c.author_address,
+          content: c.content,
+          likes: c.likes,
+          timestamp: c.timestamp,
+        }));
+        setComments(comments);
       });
   }, []);
 
@@ -251,11 +261,11 @@ export function KarmaTechUi() {
   };
 
   const handleComment = () => {
-    console.log("Comment submitted:", comment);
     const newComment = [{
       id: comments ? comments.length + 1 : 1,
-      targetid: selectedUser.id,
-      author: address as string,
+      targetId: selectedUser.id,
+      author: shortenAddress(address) as string,
+      authorAddress: address as string,
       content: comment,
       likes: 0,
       timestamp: new Date().toISOString(),
@@ -269,10 +279,22 @@ export function KarmaTechUi() {
       },
       body: JSON.stringify({
         targetId: selectedUser.id,
-        author: address,
+        author: shortenAddress(address),
+        authorAddress: address,
         content: comment,
       }),
     })
+  };
+
+  const handleDelete = (id: number) => {
+    setComments(comments?.filter((c) => c.id !== id) as Comment[]);
+    fetch("/api/delete-comment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id }),
+    });
   };
 
   const ProfileView = ({ user }: { user: User }) => (
@@ -297,10 +319,10 @@ export function KarmaTechUi() {
         <ul className="space-y-6">
           {!comments ?  (
             <p className="text-gray-500 text-center mt-16 mb-16">Loading...</p>
-          ) : comments.filter((c) => c.targetid === user?.id).length === 0 ? (
+          ) : comments.filter((c) => c.targetId === user?.id).length === 0 ? (
             <p className="text-gray-500 text-center mt-16 mb-16">No comments found</p>
           ) : comments
-            .filter((c) => c.targetid === user?.id)
+            .filter((c) => c.targetId === user?.id)
             .map((comment) => (
               <li
                 key={comment.id}
@@ -325,6 +347,15 @@ export function KarmaTechUi() {
                       <Share2 className="w-4 h-4" />
                       Share
                     </button>
+                    {comment.authorAddress === address && (
+                      <button
+                        className="flex items-center gap-1 hover:text-primary transition-colors"
+                        onClick={() => handleDelete(comment.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               </li>
@@ -363,7 +394,7 @@ export function KarmaTechUi() {
                         </Button>
                       </div>
                       <p className="flex justify-between items-center">
-                        <span>Logged in as: {address}</span>
+                        <span>Logged in as: {shortenAddress(address)}</span>
                         <span onClick={disconnectWallet} className="cursor-pointer">Logout</span>
                       </p>
                     </>

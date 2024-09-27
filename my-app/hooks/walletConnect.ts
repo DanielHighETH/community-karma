@@ -31,7 +31,7 @@ const walletConnect = (): WalletConnectReturn => {
       const data = await response.json();
 
       if (data.loggedIn) {        
-        setAddress(shortenAddress(data.address));
+        setAddress(data.address);
         setIsLoggedIn(true);
       } else {
         setIsLoggedIn(false);
@@ -46,7 +46,7 @@ const walletConnect = (): WalletConnectReturn => {
     try {
       const response = await window.aptos.connect();
       
-      setAddress(shortenAddress(response.address));
+      setAddress(response.address);
       signMessage();
     } catch (error) {
       console.error("Error connecting to Petra Wallet:", error);
