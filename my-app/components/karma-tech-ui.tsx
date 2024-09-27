@@ -22,6 +22,7 @@ import {
 import { Twitter, MessageSquare, ThumbsUp, Share2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import walletConnect from '@/hooks/walletConnect';
+import moment from 'moment';
 
 type User = {
   id: number;
@@ -291,7 +292,7 @@ export function KarmaTechUi() {
                       {comment.author}
                     </p>
                     <span className="text-sm text-gray-500">
-                      {comment.timestamp}
+                      {moment(comment.timestamp).fromNow()}
                     </span>
                   </div>
                   <p className="text-lg mb-4">{comment.content}</p>
