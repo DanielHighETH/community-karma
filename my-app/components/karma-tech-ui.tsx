@@ -261,6 +261,18 @@ export function KarmaTechUi() {
       timestamp: new Date().toISOString(),
     }]
     setComments([...comments as Comment[], ...newComment]);
+
+    fetch("/api/comment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        targetId: selectedUser.id,
+        author: address,
+        content: comment,
+      }),
+    })
   };
 
   const ProfileView = ({ user }: { user: User }) => (
@@ -300,7 +312,7 @@ export function KarmaTechUi() {
                       {comment.author}
                     </p>
                     <span className="text-sm text-gray-500">
-                      {moment(comment.timestamp).fromNow()}
+                      {moment(comment.timestamp).local().fromNow()}
                     </span>
                   </div>
                   <p className="text-lg mb-4">{comment.content}</p>
