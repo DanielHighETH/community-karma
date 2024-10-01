@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MessageSquare, ThumbsUp, Share2, Search, Trash2, Flag } from "lucide-react";
+import { MessageSquare, ThumbsUp, Share2, Search, Trash2, Flag, ThumbsDown, AlertTriangle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import walletConnect from "@/hooks/walletConnect";
 import moment from "moment";
@@ -43,6 +43,9 @@ type Comment = {
   reported: boolean;
   reportedBy: string | null;
   reportReason: string | null;
+  reportTimestamp: string | null;
+  truthVotes: number;
+  falseVotes: number;
 };
 
 const users: User[] = [
@@ -144,6 +147,13 @@ const users: User[] = [
     avatar: "LucaNetz.jpg",
     bio: "Striving for Greatness. @pudgypenguins @iglooinc @abstractchain",
   },
+  {
+    id: 15,
+    name: "ZachXBT",
+    username: "zachxbt",
+    avatar: "zachxbt.jpg",
+    bio: "Scam survivor turned 2D investigator"
+  }
 ];
 
 const SearchInput = ({
@@ -160,7 +170,7 @@ const SearchInput = ({
       placeholder="Search users..."
       value={searchTerm}
       onChange={onSearchChange}
-      className="pl-10 py-2 rounded-md focus:outline-none focus:ring-0"
+      className="pl-10 py-2 rounded-md focus:outline-none focus:ring-0 w-full"
     />
   </div>
 );
@@ -248,6 +258,9 @@ const ProfileView = memo(
         reported: false,
         reportedBy: null,
         reportReason: null,
+        reportTimestamp: null,
+        truthVotes: 0,
+        falseVotes: 0,
       };
 
       addComment(newComment);
@@ -469,12 +482,122 @@ const ProfileView = memo(
   }
 );
 
+const OracleView = memo(
+  ({
+    users,
+    comments,
+  }: {
+    users: User[];
+    comments: Comment[] | null;
+  }) => {
+    const {
+      walletAvailable,
+      connectWallet,
+      disconnectWallet,
+      address,
+      isLoggedIn,
+    } = walletConnect();
+
+    function getTimeLeft(timestamp: string) {
+      const reportTime = new Date(timestamp).getTime()
+      const now = new Date().getTime()
+      const timeLeft = reportTime + 72 * 60 * 60 * 1000 - now
+
+      if (timeLeft <= 0) {
+        return "Voting closed"
+      }
+
+      const hours = Math.floor(timeLeft / (1000 * 60 * 60))
+      const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
+
+      return `${hours}h ${minutes}m left`
+    }
+
+    return (
+      <ul className="grid grid-cols-1 gap-6 ">
+        {
+          !comments ? (
+              <p className="text-gray-500 text-center mt-16 mb-16">
+                Loading...
+              </p>
+            ) : comments.filter((comment) => comment.reported && !moment().local().subtract(3, 'days').isAfter(moment(comment.reportTimestamp).local())).length === 0 ? (
+              <p className="text-gray-500 text-center mt-16 mb-16">
+                No notes found
+              </p>
+            ) : 
+          comments?.filter((comment) => comment.reported && !moment().local().subtract(3, 'days').isAfter(moment(comment.reportTimestamp).local())).map((comment) => {
+            const author = users.find((u) => u.id === comment.targetId);
+            return (
+              <li
+                key={comment.id}
+                className="bg-gray-50 rounded-lg shadow-sm overflow-hidden"
+              >
+                <div className="px-4">
+                  <CardHeader>
+                    <div className="flex items-center space-x-4">
+                      <Avatar>
+                        <AvatarImage src={author?.avatar} alt={author?.name} />
+                        <AvatarFallback>{author?.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle>{author?.name}</CardTitle>
+                        <CardDescription>{author?.username}</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="mb-4">
+                      <h3 className="font-semibold mb-2">Original Note On {author?.name}'s profile:</h3>
+                      <div className="border-l-4 border-gray-300 pl-4 py-2 bg-gray-100 rounded">
+                        <p className="text-lg text-gray-600">{comment?.content}</p>
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <h3 className="font-semibold mb-2">Report Reason:</h3>
+                      <p className="text-lg">{comment?.reportReason}</p>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <div className="flex items-center space-x-4">
+                        <p>Reported on: {new Date(comment?.reportTimestamp as string).toLocaleString()}</p>
+                        <p>Reported by: {shortenAddress(comment?.reportedBy)}</p>
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-2" />
+                        <span>{getTimeLeft(comment?.reportTimestamp as string)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-between items-center">
+                    <div className="flex space-x-4">
+                      <Button variant="outline" className="flex items-center space-x-2">
+                        <ThumbsUp className="w-4 h-4" />
+                        <span>Truth ({comment?.truthVotes || 0})</span>
+                      </Button>
+                      <Button variant="outline" className="flex items-center space-x-2">
+                        <ThumbsDown className="w-4 h-4" />
+                        <span>False ({comment?.falseVotes || 0})</span>
+                      </Button>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Truth Score: {Math.round((comment?.truthVotes / (comment?.truthVotes + comment?.falseVotes)) * 100)}%
+                    </div>
+                  </CardFooter>
+                </div>
+              </li>
+            );
+          }
+        )}
+  </ul>
+    );
+  });
+
 export function KarmaTechUi() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [shuffledUsers, setShuffledUsers] = useState<User[]>([]);
   const [displayUsers, setDisplayUsers] = useState<User[]>([]);
   const [comments, setComments] = useState<Comment[] | null>(null);
+  const [activeView, setActiveView] = useState("community");
   const {
       address,
     } = walletConnect();
@@ -499,7 +622,7 @@ export function KarmaTechUi() {
     fetch("/api/init-data")
       .then((res) => res.json())
       .then((data) => {
-        const comments = data.map((c: any) => ({
+        const comments: Comment[] = data.map((c: any) => ({
           id: c.id,
           targetId: c.target_id,
           author: c.author,
@@ -510,10 +633,15 @@ export function KarmaTechUi() {
           reported: c.reported,
           reportedBy: c.reported_by,
           reportReason: c.report_reason,
+          reportTimestamp: c.report_timestamp,
         }));
         setComments(comments);
       });
   }, []);
+
+  const handleViewChange = (view: string) => {
+    setActiveView(view)
+  }
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -588,27 +716,69 @@ export function KarmaTechUi() {
           />
         ) : (
           <>
-            <div className="mb-6 flex justify-end text-black">
-              <SearchInput
-                searchTerm={searchTerm}
-                onSearchChange={handleSearchChange}
-              />
+            <div className='b-6 flex text-black justify-between'>
+             <div className="flex items-center bg-white rounded-md shadow-lg mb-6">
+                <button
+                  className={`px-4 py-2 rounded-l-md transition-colors duration-300 ease-in-out ${
+                    activeView === "community" ? "bg-primary text-primary-foreground" : "text-black"
+                  }`}
+                  onClick={() => handleViewChange("community")}
+                >
+                  Community View
+                </button>
+                <button
+                  className={`px-4 py-2 rounded-r-md transition-colors duration-300 ease-in-out ${
+                    activeView === "voting" ? "bg-primary text-primary-foreground" : "text-black"
+                  }`}
+                  onClick={() => handleViewChange("voting")}
+                >
+                  Voting View
+                </button>
+              </div>
+              {activeView === "community" && (
+                <div className="mb-6 text-black">
+                  <SearchInput
+                    searchTerm={searchTerm}
+                    onSearchChange={handleSearchChange}
+                  />
+                </div>
+              )}
             </div>
             <Card className="w-full bg-white/90 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-4xl font-bold text-center mt-4">
-                  karma.tech
-                </CardTitle>
-                <CardDescription className="text-xl text-center">
-                  Truth index of your favorite crypto influencers
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <UserList
-                  filteredUsers={displayUsers.slice(0, 6)}
-                  onSelectUser={setSelectedUser}
-                />
-              </CardContent>
+              {activeView === "community" ? (
+                <>
+                  <CardHeader>
+                    <CardTitle className="text-4xl font-bold text-center mt-4">
+                      karma.tech
+                    </CardTitle>
+                    <CardDescription className="text-xl text-center">
+                      Check Influencer Karma, Guaranteed by Onchain Oracle
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <UserList
+                      filteredUsers={displayUsers.slice(0, 6)}
+                      onSelectUser={setSelectedUser}
+                    />
+                  </CardContent>
+                </> ) : (
+                  <>
+                    <CardHeader>
+                      <CardTitle className="text-4xl font-bold text-center mt-4">
+                        karma.tech
+                      </CardTitle>
+                      <CardDescription className="text-xl text-center">
+                        Cast Votes with $KARMA, Help Determine the Truth, Get Rewarded
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <OracleView
+                        users={users}
+                        comments={comments}
+                      />
+                    </CardContent>
+                  </>
+                  )}
             </Card>
           </>
         )}

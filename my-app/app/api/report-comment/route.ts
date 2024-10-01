@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
     }
 
     await updateDatabase(
-      `UPDATE comments SET reported = true, reported_by = $2, report_reason = $3 WHERE id = $1`,
-      [id, decoded.address, reportReason]
+      `UPDATE comments SET reported = true, reported_by = $2, report_reason = $3, report_timestamp = $4 WHERE id = $1`,
+      [id, decoded.address, reportReason, (new Date()).toISOString()]
     )
 
     return NextResponse.json(
