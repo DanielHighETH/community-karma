@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, memo } from "react";
+import { useEffect, useState, memo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MessageSquare, ThumbsUp, Share2, Search, Trash2 } from "lucide-react";
+import { MessageSquare, ThumbsUp, Share2, Search, Trash2, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import walletConnect from "@/hooks/walletConnect";
 import moment from "moment";
@@ -40,6 +40,9 @@ type Comment = {
   content: string;
   likes: number;
   timestamp: string;
+  reported: boolean;
+  reportedBy: string | null;
+  reportReason: string | null;
 };
 
 const users: User[] = [
@@ -206,16 +209,20 @@ const ProfileView = memo(
     comments,
     addComment,
     deleteComment,
-    setSelectedUser, // Receive setSelectedUser as a prop
+    reportComment,
+    setSelectedUser,
   }: {
     user: User;
     comments: Comment[] | null;
     addComment: (comment: Comment) => void;
     deleteComment: (id: number) => void;
-    setSelectedUser: (user: User | null) => void; // Define the type here
+    reportComment: (id: number, reason: string) => void;
+    setSelectedUser: (user: User | null) => void;
   }) => {
-    const [dialogOpen, setDialogOpen] = useState(false);
+    const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+    const [reportDialogOpenNumber, setReportDialogOpenNumber] = useState<number | null>(null);
     const [commentText, setCommentText] = useState("");
+    const [reportReasonText, setReportReasonText] = useState("");
     const {
       walletAvailable,
       connectWallet,
@@ -238,11 +245,25 @@ const ProfileView = memo(
         content: commentText,
         likes: 0,
         timestamp: new Date().toISOString(),
+        reported: false,
+        reportedBy: null,
+        reportReason: null,
       };
 
       addComment(newComment);
       setCommentText("");
-      setDialogOpen(false);
+      setCommentDialogOpen(false);
+    };
+
+    const handleReportSubmit = () => {
+      if (!reportReasonText.trim()) {
+        console.error("Report reason cannot be empty");
+        return;
+      }
+
+      reportComment(reportDialogOpenNumber as number, reportReasonText);
+      setReportReasonText("");
+      setReportDialogOpenNumber(null);
     };
 
     return (
@@ -263,7 +284,7 @@ const ProfileView = memo(
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          <h3 className="text-2xl font-semibold mb-6">Comments</h3>
+          <h3 className="text-2xl font-semibold mb-6">Notes</h3>
           <ul className="space-y-6">
             {!comments ? (
               <p className="text-gray-500 text-center mt-16 mb-16">
@@ -271,11 +292,11 @@ const ProfileView = memo(
               </p>
             ) : comments.filter((c) => c.targetId === user.id).length === 0 ? (
               <p className="text-gray-500 text-center mt-16 mb-16">
-                No comments found
+                No notes found
               </p>
             ) : (
               comments
-                .filter((c) => c.targetId === user.id)
+                .filter((c) => c.targetId === user.id && !c.reported)
                 .map((comment) => (
                   <li
                     key={comment.id}
@@ -300,6 +321,13 @@ const ProfileView = memo(
                           <Share2 className="w-4 h-4" />
                           Share
                         </button>
+                        <button 
+                          className="flex items-center gap-1 hover:text-primary transition-colors"
+                          onClick={() => setReportDialogOpenNumber(comment.id)}
+                        >
+                          <Flag className="w-4 h-4" />
+                          Report
+                        </button>
                         {comment.authorAddress === address && (
                           <button
                             className="flex items-center gap-1 hover:text-primary transition-colors"
@@ -320,12 +348,12 @@ const ProfileView = memo(
           <Button
             size="lg"
             className="text-lg"
-            onClick={() => setDialogOpen(true)}
+            onClick={() => setCommentDialogOpen(true)}
           >
             <MessageSquare className="mr-2 h-5 w-5" />
             Leave a Comment
           </Button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle className="text-2xl">Leave a Comment</DialogTitle>
@@ -376,11 +404,62 @@ const ProfileView = memo(
               )}
             </DialogContent>
           </Dialog>
+          <Dialog open={reportDialogOpenNumber !== null} onOpenChange={() => setReportDialogOpenNumber(null)}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle className="text-2xl">Report a note</DialogTitle>
+                <DialogDescription className="text-lg">
+                  {!isLoggedIn && "Connect with your wallet to report a note"}
+                </DialogDescription>
+              </DialogHeader>
+              {walletAvailable ? (
+                <>
+                  {isLoggedIn ? (
+                    <>
+                      <Textarea
+                        placeholder="Your reasoning for reporting..."
+                        value={reportReasonText}
+                        onChange={(e) => setReportReasonText(e.target.value)}
+                        className="text-lg"
+                        rows={4}
+                      />
+                      <Button
+                        size="lg"
+                        onClick={handleReportSubmit}
+                        className="text-lg w-full"
+                      >
+                        Submit Report
+                      </Button>
+                      <p className="flex justify-between items-center">
+                        <span>Logged in as: {shortenAddress(address)}</span>
+                        <span
+                          onClick={disconnectWallet}
+                          className="cursor-pointer"
+                        >
+                          Logout
+                        </span>
+                      </p>
+                    </>
+                  ) : (
+                    <Button
+                      size="lg"
+                      onClick={connectWallet}
+                      className="text-lg"
+                    >
+                      Connect with your wallet
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p>Petra Wallet is not available. Please install it.</p>
+              )}
+            </DialogContent>
+          </Dialog>
           <Button
             variant="outline"
             size="lg"
             className="text-lg"
-            onClick={() => setSelectedUser(null)} // Use the function here
+            onClick={() => setSelectedUser(null)}
           >
             Back to List
           </Button>
@@ -396,6 +475,9 @@ export function KarmaTechUi() {
   const [shuffledUsers, setShuffledUsers] = useState<User[]>([]);
   const [displayUsers, setDisplayUsers] = useState<User[]>([]);
   const [comments, setComments] = useState<Comment[] | null>(null);
+  const {
+      address,
+    } = walletConnect();
 
   useEffect(() => {
     const shuffleArray = (array: any[]) => {
@@ -425,12 +507,14 @@ export function KarmaTechUi() {
           content: c.content,
           likes: c.likes,
           timestamp: c.timestamp,
+          reported: c.reported,
+          reportedBy: c.reported_by,
+          reportReason: c.report_reason,
         }));
         setComments(comments);
       });
   }, []);
 
-  // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
@@ -448,7 +532,6 @@ export function KarmaTechUi() {
       prevComments ? [...prevComments, newComment] : [newComment]
     );
 
-    // Optionally send to server
     fetch("/api/comment", {
       method: "POST",
       headers: {
@@ -463,13 +546,31 @@ export function KarmaTechUi() {
       (prevComments) => prevComments?.filter((c) => c.id !== id) || null
     );
 
-    // Optionally send to server
     fetch("/api/delete-comment", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ id }),
+    });
+  };
+
+  const reportComment = (id: number, reason: string) => {
+    setComments(
+      (prevComments) => prevComments?.map((c) => {
+        if (c.id === id) {
+          return { ...c, reported: true, reportedBy: address as string, reportReason: reason };
+        }
+        return c;
+      }) || null
+    );
+
+    fetch("/api/report-comment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id, reportReason: reason }),
     });
   };
 
@@ -482,7 +583,8 @@ export function KarmaTechUi() {
             comments={comments}
             addComment={addComment}
             deleteComment={deleteComment}
-            setSelectedUser={setSelectedUser} // Pass the function here
+            reportComment={reportComment}
+            setSelectedUser={setSelectedUser}
           />
         ) : (
           <>
