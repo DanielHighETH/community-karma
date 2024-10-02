@@ -303,7 +303,7 @@ const ProfileView = memo(
               <p className="text-gray-500 text-center mt-16 mb-16">
                 Loading...
               </p>
-            ) : comments.filter((c) => c.targetId === user.id).length === 0 ? (
+            ) : comments.filter((c) => c.targetId === user.id && !c.reported).length === 0 ? (
               <p className="text-gray-500 text-center mt-16 mb-16">
                 No notes found
               </p>
@@ -634,6 +634,8 @@ export function KarmaTechUi() {
           reportedBy: c.reported_by,
           reportReason: c.report_reason,
           reportTimestamp: c.report_timestamp,
+          truthVotes: c.truth_votes,
+          falseVotes: c.false_votes
         }));
         setComments(comments);
       });
