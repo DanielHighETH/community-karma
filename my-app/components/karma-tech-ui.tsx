@@ -514,7 +514,7 @@ const OracleView = memo(
     }
 
     return (
-      <ul className="grid grid-cols-1 gap-6 ">
+      <ul className="grid grid-cols-1 gap-6 max-h-96 overflow-y-auto">
         {
           !comments ? (
               <p className="text-gray-500 text-center mt-16 mb-16">
@@ -533,55 +533,39 @@ const OracleView = memo(
                 className="bg-gray-50 rounded-lg shadow-sm overflow-hidden"
               >
                 <div className="px-4">
-                  <CardHeader>
-                    <div className="flex items-center space-x-4">
-                      <Avatar>
-                        <AvatarImage src={author?.avatar} alt={author?.name} />
-                        <AvatarFallback>{author?.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle>{author?.name}</CardTitle>
-                        <CardDescription>{author?.username}</CardDescription>
+                  <div className='flex'>
+                    <img className='m-auto w-[15rem] h-[15rem] object-cover' src={author?.avatar} alt={author?.name} />
+                  <div>
+                    <CardContent className='pb-0  pt-8'>
+                      <div className="mb-4">
+                        <h3 className="font-semibold mb-2">Original Note On {author?.name}'s profile:</h3>
+                        <div className="border-l-4 border-gray-300 pl-4 py-2 bg-gray-100 rounded">
+                          <p className="text-lg text-gray-600">{comment?.content}</p>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-4">
-                      <h3 className="font-semibold mb-2">Original Note On {author?.name}'s profile:</h3>
-                      <div className="border-l-4 border-gray-300 pl-4 py-2 bg-gray-100 rounded">
-                        <p className="text-lg text-gray-600">{comment?.content}</p>
+                      <div className="mb-4">
+                        <h3 className="font-semibold mb-2">Report Reason:</h3>
+                        <p className="text-lg">{comment?.reportReason}</p>
                       </div>
-                    </div>
-                    <div className="mb-4">
-                      <h3 className="font-semibold mb-2">Report Reason:</h3>
-                      <p className="text-lg">{comment?.reportReason}</p>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <div className="flex items-center space-x-4">
-                        <p>Reported on: {new Date(comment?.reportTimestamp as string).toLocaleString()}</p>
-                        <p>Reported by: {shortenAddress(comment?.reportedBy)}</p>
+                    </CardContent>
+                    <CardFooter className="flex justify-between items-center">
+                      <div className="flex space-x-4">
+                        <Button variant="outline" className="flex items-center space-x-2">
+                          <ThumbsUp className="w-4 h-4" />
+                          <span>Truth ({comment?.truthVotes || 0})</span>
+                        </Button>
+                        <Button variant="outline" className="flex items-center space-x-2">
+                          <ThumbsDown className="w-4 h-4" />
+                          <span>False ({comment?.falseVotes || 0})</span>
+                        </Button>
                       </div>
                       <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-2" />
                         <span>{getTimeLeft(comment?.reportTimestamp as string)}</span>
                       </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between items-center">
-                    <div className="flex space-x-4">
-                      <Button variant="outline" className="flex items-center space-x-2">
-                        <ThumbsUp className="w-4 h-4" />
-                        <span>Truth ({comment?.truthVotes || 0})</span>
-                      </Button>
-                      <Button variant="outline" className="flex items-center space-x-2">
-                        <ThumbsDown className="w-4 h-4" />
-                        <span>False ({comment?.falseVotes || 0})</span>
-                      </Button>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      Truth Score: {Math.round((comment?.truthVotes / (comment?.truthVotes + comment?.falseVotes)) * 100)}%
-                    </div>
-                  </CardFooter>
+                    </CardFooter>
+                  </div>
+                  </div>
                 </div>
               </li>
             );
@@ -705,7 +689,7 @@ export function KarmaTechUi() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 flex items-center justify-center p-8">
+    <div className="min-h-screen bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 flex items-center justify-center p-8 max-h-96 overflow-y-hidden">
       <div className="w-full max-w-6xl">
         {selectedUser ? (
           <ProfileView
