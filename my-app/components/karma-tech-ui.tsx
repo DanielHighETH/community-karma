@@ -486,9 +486,11 @@ const OracleView = memo(
   ({
     users,
     comments,
+    setComments,
   }: {
     users: User[];
     comments: Comment[] | null;
+    setComments: (comments: Comment[] | null) => void;
   }) => {
     const {
       walletAvailable,
@@ -497,6 +499,40 @@ const OracleView = memo(
       address,
       isLoggedIn,
     } = walletConnect();
+    const [vote, setVote] = useState<boolean | null>(null);
+    const [voteId, setVoteId] = useState<number | null>(null);
+
+    const handleVote = (id: number, vote: boolean) => () => {
+      setVoteId(id);
+      setVote(vote);
+    }
+
+    const handleVoteSubmit = () => {
+      if (voteId === null || vote === null) {
+        console.error("Vote ID and vote value must be set");
+        return;
+      }
+
+      setComments(
+        comments?.map((c) => {
+          if (c.id === voteId) {
+            return { ...c, [vote ? "truthVotes" : "falseVotes"]: c[vote ? "truthVotes" : "falseVotes"] + 1 };
+          }
+          return c;
+        }) || null
+      );
+
+      setVote(null);
+      setVoteId(null);
+
+      fetch("/api/vote", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: voteId, vote }),
+      });
+    }
 
     function getTimeLeft(timestamp: string) {
       const reportTime = new Date(timestamp).getTime()
@@ -514,64 +550,112 @@ const OracleView = memo(
     }
 
     return (
-      <ul className="grid grid-cols-1 gap-6 max-h-90 overflow-y-auto">
-        {
-          !comments ? (
-              <p className="text-gray-500 text-center mt-16 mb-16">
-                Loading...
-              </p>
-            ) : comments.filter((comment) => comment.reported && !moment().local().subtract(3, 'days').isAfter(moment(comment.reportTimestamp).local())).length === 0 ? (
-              <p className="text-gray-500 text-center mt-16 mb-16">
-                No notes found
-              </p>
-            ) : 
-          comments?.filter((comment) => comment.reported && !moment().local().subtract(3, 'days').isAfter(moment(comment.reportTimestamp).local())).map((comment) => {
-            const author = users.find((u) => u.id === comment.targetId);
-            return (
-              <li
-                key={comment.id}
-                className="bg-gray-50 rounded-lg shadow-sm overflow-hidden"
-              >
-                <div className="px-4">
-                  <div className='flex'>
-                    <img className='m-auto w-[15rem] h-[15rem] object-cover' src={author?.avatar} alt={author?.name} />
-                  <div>
-                    <CardContent className='pb-0  pt-8'>
-                      <div className="mb-4">
-                        <h3 className="font-semibold mb-2 text-sm">Original Note On {author?.name}'s profile:</h3>
-                        <div className="border-l-4 border-gray-300 pl-4 py-2 bg-gray-100 rounded">
-                          <p className="text-md text-gray-600">{comment?.content}</p>
-                        </div>
+      <>
+        <Dialog open={vote !== null} onOpenChange={() => setVote(null)}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle className="text-2xl">Are you sure you want to submit this vote?</DialogTitle>
+                <DialogDescription className="text-lg">
+                  {!isLoggedIn && "Connect with your wallet to submit a vote"}
+                </DialogDescription>
+              </DialogHeader>
+              {walletAvailable ? (
+                <>
+                  {isLoggedIn ? (
+                    <>
+                      <Button
+                        size="lg"
+                        onClick={handleVoteSubmit}
+                        className="text-lg w-full"
+                      >
+                        Submit Vote
+                      </Button>
+                      <p className="flex justify-between items-center">
+                        <span>Logged in as: {shortenAddress(address)}</span>
+                        <span
+                          onClick={disconnectWallet}
+                          className="cursor-pointer"
+                        >
+                          Logout
+                        </span>
+                      </p>
+                    </>
+                  ) : (
+                    <Button
+                      size="lg"
+                      onClick={connectWallet}
+                      className="text-lg"
+                    >
+                      Connect with your wallet
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p>Petra Wallet is not available. Please install it.</p>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <ul className="grid grid-cols-1 gap-6 max-h-90 overflow-y-auto">
+            {
+              !comments ? (
+                  <p className="text-gray-500 text-center mt-16 mb-16">
+                    Loading...
+                  </p>
+                ) : comments.filter((comment) => comment.reported && !moment().local().subtract(3, 'days').isAfter(moment(comment.reportTimestamp).local())).length === 0 ? (
+                  <p className="text-gray-500 text-center mt-16 mb-16">
+                    No notes found
+                  </p>
+                ) : 
+              comments?.filter((comment) => comment.reported && !moment().local().subtract(3, 'days').isAfter(moment(comment.reportTimestamp).local())).map((comment) => {
+                const author = users.find((u) => u.id === comment.targetId);
+                return (
+                  <li
+                    key={comment.id}
+                    className="bg-gray-50 rounded-lg shadow-sm overflow-hidden"
+                  >
+                    <div className="px-4">
+                      <div className='flex'>
+                        <img className='m-auto w-[15rem] h-[15rem] object-cover' src={author?.avatar} alt={author?.name} />
+                      <div>
+                        <CardContent className='pb-0  pt-8'>
+                          <div className="mb-4">
+                            <h3 className="font-semibold mb-2 text-sm">Original Note On {author?.name}'s profile:</h3>
+                            <div className="border-l-4 border-gray-300 pl-4 py-2 bg-gray-100 rounded">
+                              <p className="text-md text-gray-600">{comment?.content}</p>
+                            </div>
+                          </div>
+                          <div className="mb-4">
+                            <h3 className="font-semibold mb-2 text-sm">Report Reason:</h3>
+                            <p className="text-md">{comment?.reportReason}</p>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-between items-center">
+                          <div className="flex space-x-4">
+                            <Button variant="outline" className="flex items-center space-x-2" onClick={handleVote(comment?.id, true)}>
+                              <ThumbsUp className="w-4 h-4" />
+                              <span>Truth ({comment?.truthVotes || 0})</span>
+                            </Button>
+                            <Button variant="outline" className="flex items-center space-x-2"onClick={handleVote(comment?.id, false)}>
+                              <ThumbsDown className="w-4 h-4" />
+                              <span>False ({comment?.falseVotes || 0})</span>
+                            </Button>
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="w-4 h-4 mr-2" />
+                            <span>{getTimeLeft(comment?.reportTimestamp as string)}</span>
+                          </div>
+                        </CardFooter>
                       </div>
-                      <div className="mb-4">
-                        <h3 className="font-semibold mb-2 text-sm">Report Reason:</h3>
-                        <p className="text-md">{comment?.reportReason}</p>
                       </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-between items-center">
-                      <div className="flex space-x-4">
-                        <Button variant="outline" className="flex items-center space-x-2">
-                          <ThumbsUp className="w-4 h-4" />
-                          <span>Truth ({comment?.truthVotes || 0})</span>
-                        </Button>
-                        <Button variant="outline" className="flex items-center space-x-2">
-                          <ThumbsDown className="w-4 h-4" />
-                          <span>False ({comment?.falseVotes || 0})</span>
-                        </Button>
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2" />
-                        <span>{getTimeLeft(comment?.reportTimestamp as string)}</span>
-                      </div>
-                    </CardFooter>
-                  </div>
-                  </div>
-                </div>
-              </li>
-            );
-          }
-        )}
-  </ul>
+                    </div>
+                  </li>
+                );
+              }
+            )}
+          </ul>
+    </>
+      
     );
   });
 
@@ -761,6 +845,7 @@ export function KarmaTechUi() {
                       <OracleView
                         users={users}
                         comments={comments}
+                        setComments={setComments}
                       />
                     </CardContent>
                   </>
