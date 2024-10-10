@@ -298,7 +298,7 @@ const ProfileView = memo(
         </CardHeader>
         <CardContent className="pt-6">
           <h3 className="text-2xl font-semibold mb-6">Notes</h3>
-          <ul className="space-y-6">
+          <ul className="space-y-6 max-h-100 overflow-y-auto">
             {!comments ? (
               <p className="text-gray-500 text-center mt-16 mb-16">
                 Loading...
@@ -514,7 +514,7 @@ const OracleView = memo(
     }
 
     return (
-      <ul className="grid grid-cols-1 gap-6 max-h-96 overflow-y-auto">
+      <ul className="grid grid-cols-1 gap-6 max-h-90 overflow-y-auto">
         {
           !comments ? (
               <p className="text-gray-500 text-center mt-16 mb-16">
@@ -538,14 +538,14 @@ const OracleView = memo(
                   <div>
                     <CardContent className='pb-0  pt-8'>
                       <div className="mb-4">
-                        <h3 className="font-semibold mb-2">Original Note On {author?.name}'s profile:</h3>
+                        <h3 className="font-semibold mb-2 text-sm">Original Note On {author?.name}'s profile:</h3>
                         <div className="border-l-4 border-gray-300 pl-4 py-2 bg-gray-100 rounded">
-                          <p className="text-lg text-gray-600">{comment?.content}</p>
+                          <p className="text-md text-gray-600">{comment?.content}</p>
                         </div>
                       </div>
                       <div className="mb-4">
-                        <h3 className="font-semibold mb-2">Report Reason:</h3>
-                        <p className="text-lg">{comment?.reportReason}</p>
+                        <h3 className="font-semibold mb-2 text-sm">Report Reason:</h3>
+                        <p className="text-md">{comment?.reportReason}</p>
                       </div>
                     </CardContent>
                     <CardFooter className="flex justify-between items-center">
@@ -743,7 +743,7 @@ export function KarmaTechUi() {
                   </CardHeader>
                   <CardContent>
                     <UserList
-                      filteredUsers={displayUsers.slice(0, 6)}
+                      filteredUsers={displayUsers.slice(0, 9)}
                       onSelectUser={setSelectedUser}
                     />
                   </CardContent>
