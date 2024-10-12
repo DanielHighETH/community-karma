@@ -519,8 +519,6 @@ const OracleView = memo(
         return;
       }
 
-      console.log("Submitting vote", vote, voteAmount);
-
       setComments(
         comments?.map((c) => {
           if (c.id === voteId) {
@@ -632,7 +630,7 @@ const OracleView = memo(
                     <div className="px-4">
                       <div className='flex'>
                         <img className='m-auto w-[15rem] h-[15rem] object-cover' src={author?.avatar} alt={author?.name} />
-                      <div>
+                      <div className='w-[70%]'>
                         <CardContent className='pb-0  pt-8'>
                           <div className="mb-4">
                             <h3 className="font-semibold mb-2 text-sm">Original Note On {author?.name}'s profile:</h3>
