@@ -11,6 +11,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { NumberInput } from "@/components/ui/numberinput";
 import {
   Dialog,
   DialogContent,
@@ -500,11 +501,16 @@ const OracleView = memo(
       isLoggedIn,
     } = walletConnect();
     const [vote, setVote] = useState<boolean | null>(null);
+    const [voteAmount, setVoteAmount] = useState<number | null>(null);
     const [voteId, setVoteId] = useState<number | null>(null);
 
     const handleVote = (id: number, vote: boolean) => () => {
       setVoteId(id);
       setVote(vote);
+    }
+
+    const handleVoteNumberChange = (value: number) => {
+      setVoteAmount(value);
     }
 
     const handleVoteSubmit = () => {
@@ -513,10 +519,12 @@ const OracleView = memo(
         return;
       }
 
+      console.log("Submitting vote", vote, voteAmount);
+
       setComments(
         comments?.map((c) => {
           if (c.id === voteId) {
-            return { ...c, [vote ? "truthVotes" : "falseVotes"]: c[vote ? "truthVotes" : "falseVotes"] + 1 };
+            return { ...c, [vote ? "truthVotes" : "falseVotes"]: c[vote ? "truthVotes" : "falseVotes"] + (voteAmount as number)};
           }
           return c;
         }) || null
@@ -530,7 +538,7 @@ const OracleView = memo(
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ id: voteId, vote }),
+        body: JSON.stringify({ id: voteId, vote, voteAmount }),
       });
     }
 
@@ -554,7 +562,7 @@ const OracleView = memo(
         <Dialog open={vote !== null} onOpenChange={() => setVote(null)}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle className="text-2xl">Are you sure you want to submit this vote?</DialogTitle>
+                <DialogTitle className="text-2xl">Choose number of {!vote ? 'False' : 'Truth'} votes</DialogTitle>
                 <DialogDescription className="text-lg">
                   {!isLoggedIn && "Connect with your wallet to submit a vote"}
                 </DialogDescription>
@@ -563,6 +571,13 @@ const OracleView = memo(
                 <>
                   {isLoggedIn ? (
                     <>
+                        <NumberInput
+                          min={1000}
+                          max={100000}
+                          step={1000}
+                          defaultValue={10000}
+                          onChange={handleVoteNumberChange}
+                        />
                       <Button
                         size="lg"
                         onClick={handleVoteSubmit}

@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { updateDatabase } from '@/app/lib/backend-utils';
 
 export async function POST(req: NextRequest) {
-  const { id, vote } = await req.json();
+  const { id, vote, voteAmount } = await req.json();
   const token = req.cookies.get("auth-token")?.value;
 
   if (!token) {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     await updateDatabase(
-      `UPDATE comments SET ${vote ? 'truth_votes' : 'false_votes'} = ${vote ? 'truth_votes' : 'false_votes'} + 1 WHERE id = $1`,
+      `UPDATE comments SET ${vote ? 'truth_votes' : 'false_votes'} = ${vote ? 'truth_votes' : 'false_votes'} + ${voteAmount} WHERE id = $1`,
       [id]
     )
 
