@@ -570,7 +570,7 @@ const OracleView = memo(
                   {isLoggedIn ? (
                     <>
                         <NumberInput
-                          min={1000}
+                          min={0}
                           max={100000}
                           step={1000}
                           defaultValue={10000}
@@ -609,7 +609,7 @@ const OracleView = memo(
             </DialogContent>
           </Dialog>
 
-          <ul className="grid grid-cols-1 gap-6 max-h-90 overflow-y-auto">
+          <ul className="grid grid-cols-1 gap-6 max-h-[40rem] overflow-y-auto">
             {
               !comments ? (
                   <p className="text-gray-500 text-center mt-16 mb-16">
@@ -770,7 +770,7 @@ export function KarmaTechUi() {
     setComments(
       (prevComments) => prevComments?.map((c) => {
         if (c.id === id) {
-          return { ...c, reported: true, reportedBy: address as string, reportReason: reason };
+          return { ...c, reported: true, reportedBy: address as string, reportReason: reason, reportTimestamp: new Date().toISOString() };
         }
         return c;
       }) || null
