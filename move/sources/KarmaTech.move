@@ -11,6 +11,8 @@ module karmaTech::karmaTech {
 
     const ASSET_SYMBOL: vector<u8> = b"KARMA";
 
+    const DEFAULT_STAKE_AMOUNT: u64 = 30000000000; // 3000 Tokens
+
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     /// Hold refs to control the minting, transfer, and burning of fungible assets.
     struct ManagedFungibleAsset has key {
@@ -27,6 +29,7 @@ module karmaTech::karmaTech {
 
     struct ModuleData has key {
         mint_ref: MintRef,
+        min_stake_amount: u64,
     }
 
     /// The KarmaToken struct (Fungible Token)
@@ -53,6 +56,7 @@ module karmaTech::karmaTech {
 
         move_to(admin, ModuleData {
             mint_ref,
+            min_stake_amount: DEFAULT_STAKE_AMOUNT,
         });
 
         // Now create ManagedFungibleAsset with a fresh mint_ref since the previous one was moved.
@@ -73,6 +77,13 @@ module karmaTech::karmaTech {
     public fun get_metadata(): Object<Metadata> {
         let asset_address = object::create_object_address(&@karmaTech, ASSET_SYMBOL);
         object::address_to_object<Metadata>(asset_address)
+    }
+
+    #[view]
+    // Function to view the current min_stake_amount
+    public fun view_min_stake_amount(): u64 acquires ModuleData {
+        let module_data = borrow_global<ModuleData>(@karmaTech);
+        module_data.min_stake_amount
     }
 
     /// Mint as the owner of metadata object and deposit to a specific account.
@@ -132,6 +143,15 @@ module karmaTech::karmaTech {
         let transfer_ref = &authorized_borrow_refs(admin, asset).transfer_ref;
         let to_wallet = primary_fungible_store::ensure_primary_store_exists(to, asset);
         fungible_asset::deposit_with_ref(transfer_ref, to_wallet, fa);
+    }
+
+    /// Function to set the minimum required stake amount, only by the owner.
+    public entry fun set_min_stake_amount(owner: &signer, new_min_stake_amount: u64) acquires ModuleData {
+        let asset = get_metadata();
+        assert!(object::is_owner(asset, signer::address_of(owner)), error::permission_denied(ENOT_OWNER));
+
+        let module_data = borrow_global_mut<ModuleData>(@karmaTech);
+        module_data.min_stake_amount = new_min_stake_amount;
     }
 
     /// Borrow the immutable reference of the refs of `metadata`.
