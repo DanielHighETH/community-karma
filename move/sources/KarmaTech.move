@@ -16,6 +16,7 @@ module karmaTech::karmaTech {
     const ASSET_SYMBOL: vector<u8> = b"KARMA";
 
     const DEFAULT_STAKE_AMOUNT: u64 = 30000000000; // 3000 Tokens
+    const DEFAULT_APR_REWARD: u64 = 10000000000; // 1000 Tokens
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     /// Hold refs to control the minting, transfer, and burning of fungible assets.
@@ -41,8 +42,10 @@ module karmaTech::karmaTech {
     struct ModuleData has key {
         mint_ref: MintRef,
         min_stake_amount: u64,
+        apr_reward: u64,
         reports: table::Table<u64, vector<ReportInfo>>,
         votes: table::Table<u128, vector<VoteInfo>>,
+        payouts_processed: table::Table<u128, bool>,
     }
 
     /// Combine note_id and reason_id into a single u128 key.
@@ -71,13 +74,15 @@ module karmaTech::karmaTech {
         // Create tables to store reports and votes.
         let reports_table = table::new<u64, vector<ReportInfo>>();
         let votes_table = table::new<u128, vector<VoteInfo>>();
-
+        let payouts_table = table::new<u128, bool>();
 
         move_to(admin, ModuleData {
             mint_ref,
             min_stake_amount: DEFAULT_STAKE_AMOUNT,
+            apr_reward: DEFAULT_APR_REWARD,
             reports: reports_table,
             votes: votes_table,
+            payouts_processed: payouts_table,
         });
 
         // Now create ManagedFungibleAsset with a fresh mint_ref since the previous one was moved.
@@ -150,6 +155,24 @@ module karmaTech::karmaTech {
 
         // Return the total truth and false stakes
         (total_truth_stake, total_false_stake)
+    }
+
+    #[view]
+    // Function to view the current APR_REWARD
+    public fun view_apr_reward(): u64 acquires ModuleData {
+        let module_data = borrow_global<ModuleData>(@karmaTech);
+        module_data.apr_reward
+    }
+
+    /// Function to set a new APR_REWARD, only owner can change this
+    public entry fun set_apr_reward(owner: &signer, new_apr_reward: u64) acquires ModuleData {
+        let module_data = borrow_global_mut<ModuleData>(@karmaTech);
+
+        // Ensure that only the owner can change the APR_REWARD
+        assert!(object::is_owner(get_metadata(), signer::address_of(owner)), error::permission_denied(ENOT_OWNER));
+
+        // Set the new APR reward
+        module_data.apr_reward = new_apr_reward;
     }
 
     /// Mint as the owner of metadata object and deposit to a specific account.
@@ -299,6 +322,115 @@ module karmaTech::karmaTech {
 
         // Add the new vote.
         vector::push_back(votes, vote_info);
+    }
+
+    /// Function to handle payouts after voting is closed.
+    /// - note_id: The ID of the note being voted on.
+    /// - reason_id: The reason for the vote.
+    public entry fun payout(owner: &signer, note_id: u64, reason_id: u64) acquires ModuleData, ManagedFungibleAsset {
+        let module_data = borrow_global_mut<ModuleData>(@karmaTech);
+        let asset = get_metadata();
+        let managed_fungible_asset = borrow_global<ManagedFungibleAsset>(object::object_address(&asset));
+
+        // Ensure that only the owner can call this function.
+        assert!(object::is_owner(asset, signer::address_of(owner)), error::permission_denied(ENOT_OWNER));
+
+        // Combine note_id and reason_id into a single u128 key.
+        let vote_key = create_vote_key(note_id, reason_id);
+
+        // Ensure that votes exist for the given note and reason.
+        assert!(table::contains(&module_data.votes, vote_key), ENOT_FOUND);
+
+        // Check if the payout has already been processed
+        if (table::contains(&module_data.payouts_processed, vote_key)) {
+            abort(ENOT_FOUND)
+        };
+
+        // Mark the payout as processed
+        table::add(&mut module_data.payouts_processed, vote_key, true);
+
+        let votes = table::borrow(&module_data.votes, vote_key);
+        let votes_len = vector::length(votes);
+
+        let total_truth_stake = 0u64;
+        let total_false_stake = 0u64;
+
+        for (i in 0..votes_len) {
+            let vote_info = vector::borrow(votes, i);
+            if (vote_info.vote == 1) {
+                total_truth_stake = total_truth_stake + vote_info.amount;
+            } else {
+                total_false_stake = total_false_stake + vote_info.amount;
+            };
+        };
+
+        let is_truth_majority = total_truth_stake > total_false_stake;
+        let module_wallet = primary_fungible_store::ensure_primary_store_exists(@karmaTech, asset);
+
+        let reward_pool = if (is_truth_majority) {
+            total_false_stake
+        } else {
+            total_truth_stake
+        };
+
+        let (voters_reward_pool, apr_reward_voters) = if (is_truth_majority) {
+            (reward_pool * 70 / 100, module_data.apr_reward * 70 / 100) 
+        } else {
+            (reward_pool * 100 / 100, module_data.apr_reward * 100 / 100)
+        };
+
+        let reporter_reward_pool = if (is_truth_majority) {
+            reward_pool * 30 / 100
+        } else {
+            0u64
+        };
+
+        let apr_reward_reporter = if (is_truth_majority) {
+            module_data.apr_reward * 30 / 100
+        } else {
+            0u64
+        };
+
+        let total_winning_stake = if (is_truth_majority) {
+            total_truth_stake
+        } else {
+            total_false_stake
+        };
+
+        for (i in 0..votes_len) {
+            let vote_info = vector::borrow(votes, i);
+            let from_wallet = primary_fungible_store::primary_store(vote_info.voter, asset);
+
+            if (is_truth_majority && vote_info.vote == 1) {
+                let proportion = vote_info.amount * 10000 / total_winning_stake;
+                let reward_from_lost = proportion * voters_reward_pool / 10000;
+                let apr_reward = proportion * apr_reward_voters / 10000;
+
+                let staked_amount_return = vote_info.amount;
+                let total_reward = staked_amount_return + reward_from_lost + apr_reward;
+
+                fungible_asset::transfer_with_ref(&managed_fungible_asset.transfer_ref, module_wallet, from_wallet, total_reward);
+
+            } else if (!is_truth_majority && vote_info.vote == 0) {
+                let proportion = vote_info.amount * 10000 / total_winning_stake;
+                let reward_from_lost = proportion * voters_reward_pool / 10000;
+                let apr_reward = proportion * apr_reward_voters / 10000;
+
+                let staked_amount_return = vote_info.amount;
+                let total_reward = staked_amount_return + reward_from_lost + apr_reward;
+
+                fungible_asset::transfer_with_ref(&managed_fungible_asset.transfer_ref, module_wallet, from_wallet, total_reward);
+            };
+        };
+
+        let reports = table::borrow_mut(&mut module_data.reports, note_id);
+        let report_info = vector::borrow(&*reports, vector::length(reports) - 1);
+        let reporter_wallet = primary_fungible_store::primary_store(report_info.reporter, asset);
+
+        if (is_truth_majority) {
+            let reporter_reward = module_data.min_stake_amount + reporter_reward_pool + apr_reward_reporter;
+            fungible_asset::transfer_with_ref(&managed_fungible_asset.transfer_ref, module_wallet, reporter_wallet, reporter_reward);
+        }
     }
 
     /// Borrow the immutable reference of the refs of `metadata`.
