@@ -11,6 +11,7 @@ module karmaTech::karmaTech {
 
     const ENOT_OWNER: u64 = 1;
     const ENOT_ENOUGH_BALANCE: u64 = 2;
+    const ENOT_FOUND: u64 = 3;
 
     const ASSET_SYMBOL: vector<u8> = b"KARMA";
 
@@ -30,14 +31,24 @@ module karmaTech::karmaTech {
         reason_id: u64,
     }
 
+    /// Struct to store vote information
+    struct VoteInfo has copy, drop, store {
+        voter: address,
+        vote: u8, // 1 for truth, 0 for false
+        amount: u64,
+    }
+
     struct ModuleData has key {
         mint_ref: MintRef,
         min_stake_amount: u64,
         reports: table::Table<u64, vector<ReportInfo>>,
+        votes: table::Table<u128, vector<VoteInfo>>,
     }
 
-    /// The KarmaToken struct (Fungible Token)
-    struct KarmaToken has key {}
+    /// Combine note_id and reason_id into a single u128 key.
+    fun create_vote_key(note_id: u64, reason_id: u64): u128 {
+        ((note_id as u128) << 64) | (reason_id as u128)
+    }
 
     /// Initialize metadata object and store the refs.
     fun init_module(admin: &signer) {
@@ -57,14 +68,16 @@ module karmaTech::karmaTech {
         let burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
         let transfer_ref = fungible_asset::generate_transfer_ref(constructor_ref);
 
-        // Create a table to store reports for each note_id.
+        // Create tables to store reports and votes.
         let reports_table = table::new<u64, vector<ReportInfo>>();
+        let votes_table = table::new<u128, vector<VoteInfo>>();
 
 
         move_to(admin, ModuleData {
             mint_ref,
             min_stake_amount: DEFAULT_STAKE_AMOUNT,
             reports: reports_table,
+            votes: votes_table,
         });
 
         // Now create ManagedFungibleAsset with a fresh mint_ref since the previous one was moved.
@@ -105,6 +118,38 @@ module karmaTech::karmaTech {
         } else {
             vector::empty<ReportInfo>()
         }
+    }
+
+    #[view]
+    /// Function to view the total staked tokens for truth and false votes on a reported note.
+    public fun view_staked_tokens(note_id: u64, reason_id: u64): (u64, u64) acquires ModuleData {
+        let module_data = borrow_global<ModuleData>(@karmaTech);
+
+        // Combine note_id and reason_id into a single u128 key.
+        let vote_key = create_vote_key(note_id, reason_id);
+
+        // Ensure that votes exist for the given note and reason.
+        assert!(table::contains(&module_data.votes, vote_key), ENOT_FOUND);
+
+        let votes = table::borrow(&module_data.votes, vote_key);
+        let votes_len = vector::length(votes);
+
+        // Initialize counters for truth and false stakes
+        let total_truth_stake = 0u64;
+        let total_false_stake = 0u64;
+
+        // Loop through the votes to calculate total truth and false stakes
+        for (i in 0..votes_len) {
+            let vote_info = vector::borrow(votes, i);
+            if (vote_info.vote == 1) {
+                total_truth_stake = total_truth_stake + vote_info.amount;
+            } else {
+                total_false_stake = total_false_stake + vote_info.amount;
+            };
+        };
+
+        // Return the total truth and false stakes
+        (total_truth_stake, total_false_stake)
     }
 
     /// Mint as the owner of metadata object and deposit to a specific account.
@@ -206,6 +251,54 @@ module karmaTech::karmaTech {
             reason_id,
         };
         vector::push_back(reports, report_info);
+    }
+
+    /// Function for users to submit a vote by staking tokens.
+    /// Parameters:
+    /// - reporter: The signer submitting the vote.
+    /// - note_id: The note being voted on.
+    /// - reason_id: The reason for the vote.
+    /// - amount: The amount of tokens staked on the vote.
+    /// - vote: 1 for truth, 0 for false.
+    public entry fun submit_vote(reporter: &signer, note_id: u64, reason_id: u64, amount: u64, vote: u8) acquires ModuleData, ManagedFungibleAsset {
+        let reporter_address = signer::address_of(reporter);
+        let asset = get_metadata();
+
+        let module_data = borrow_global_mut<ModuleData>(@karmaTech);
+        let managed_fungible_asset = borrow_global<ManagedFungibleAsset>(object::object_address(&asset));
+
+        // Ensure the amount is greater than 0.
+        assert!(amount > 0, ENOT_ENOUGH_BALANCE);
+
+        // Ensure the reporter has enough tokens to stake.
+        let from_wallet = primary_fungible_store::primary_store(reporter_address, asset);
+        assert!(fungible_asset::balance(from_wallet) >= amount, ENOT_ENOUGH_BALANCE);
+
+        // Transfer the staked amount from the reporter to the module.
+        let module_wallet = primary_fungible_store::ensure_primary_store_exists(@karmaTech, asset);
+        fungible_asset::transfer_with_ref(&managed_fungible_asset.transfer_ref, from_wallet, module_wallet, amount);
+
+        // Store the vote along with the staked amount.
+        let vote_info = VoteInfo {
+            voter: reporter_address,
+            vote,
+            amount,
+        };
+
+        // Combine note_id and reason_id into a single u128 key.
+        let vote_key = create_vote_key(note_id, reason_id);
+
+        // Get existing votes for the (note_id, reason_id), or initialize a new vector.
+        let votes = if (table::contains(&module_data.votes, vote_key)) {
+            table::borrow_mut(&mut module_data.votes, vote_key)
+        } else {
+            let new_votes = vector::empty<VoteInfo>();
+            table::add(&mut module_data.votes, vote_key, new_votes);
+            table::borrow_mut(&mut module_data.votes, vote_key)
+        };
+
+        // Add the new vote.
+        vector::push_back(votes, vote_info);
     }
 
     /// Borrow the immutable reference of the refs of `metadata`.
