@@ -6,8 +6,11 @@ module karmaTech::karmaTech {
     use std::signer;
     use std::string::utf8;
     use std::option;
+    use std::table;
+    use std::vector;
 
     const ENOT_OWNER: u64 = 1;
+    const ENOT_ENOUGH_BALANCE: u64 = 2;
 
     const ASSET_SYMBOL: vector<u8> = b"KARMA";
 
@@ -30,6 +33,7 @@ module karmaTech::karmaTech {
     struct ModuleData has key {
         mint_ref: MintRef,
         min_stake_amount: u64,
+        reports: table::Table<u64, vector<ReportInfo>>,
     }
 
     /// The KarmaToken struct (Fungible Token)
@@ -53,10 +57,14 @@ module karmaTech::karmaTech {
         let burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
         let transfer_ref = fungible_asset::generate_transfer_ref(constructor_ref);
 
+        // Create a table to store reports for each note_id.
+        let reports_table = table::new<u64, vector<ReportInfo>>();
+
 
         move_to(admin, ModuleData {
             mint_ref,
             min_stake_amount: DEFAULT_STAKE_AMOUNT,
+            reports: reports_table,
         });
 
         // Now create ManagedFungibleAsset with a fresh mint_ref since the previous one was moved.
@@ -84,6 +92,19 @@ module karmaTech::karmaTech {
     public fun view_min_stake_amount(): u64 acquires ModuleData {
         let module_data = borrow_global<ModuleData>(@karmaTech);
         module_data.min_stake_amount
+    }
+
+    #[view]
+    /// Function to retrieve reports for a given note_id.
+    public fun get_reports(note_id: u64): vector<ReportInfo> acquires ModuleData {
+        let module_data = borrow_global<ModuleData>(@karmaTech);
+
+        if (table::contains(&module_data.reports, note_id)) {
+            let reports_ref = table::borrow(&module_data.reports, note_id);
+            *reports_ref
+        } else {
+            vector::empty<ReportInfo>()
+        }
     }
 
     /// Mint as the owner of metadata object and deposit to a specific account.
@@ -152,6 +173,39 @@ module karmaTech::karmaTech {
 
         let module_data = borrow_global_mut<ModuleData>(@karmaTech);
         module_data.min_stake_amount = new_min_stake_amount;
+    }
+
+    /// Function for users to report a note by staking KARMA tokens.
+    public entry fun report_note(reporter: &signer, note_id: u64, reason_id: u64) acquires ModuleData, ManagedFungibleAsset {
+        let reporter_address = signer::address_of(reporter);
+        let asset = get_metadata();
+
+        let module_data = borrow_global_mut<ModuleData>(@karmaTech);
+        let managed_fungible_asset = borrow_global<ManagedFungibleAsset>(object::object_address(&asset));
+
+        // Ensure the reporter has enough coins to stake.
+        let from_wallet = primary_fungible_store::primary_store(reporter_address, asset);
+        assert!(fungible_asset::balance(from_wallet) >= module_data.min_stake_amount, ENOT_ENOUGH_BALANCE);
+
+        // Transfer the required stake amount from the reporter to the module.
+        let module_wallet = primary_fungible_store::ensure_primary_store_exists(@karmaTech, asset);
+        fungible_asset::transfer_with_ref(&managed_fungible_asset.transfer_ref, from_wallet, module_wallet, module_data.min_stake_amount);
+
+        // Get existing reports for the note_id, or initialize a new vector.
+        let reports = if (table::contains(&module_data.reports, note_id)) {
+            table::borrow_mut(&mut module_data.reports, note_id)
+        } else {
+            let new_reports = vector::empty<ReportInfo>();
+            table::add(&mut module_data.reports, note_id, new_reports);
+            table::borrow_mut(&mut module_data.reports, note_id)
+        };
+
+        // Add the new report.
+        let report_info = ReportInfo {
+            reporter: reporter_address,
+            reason_id,
+        };
+        vector::push_back(reports, report_info);
     }
 
     /// Borrow the immutable reference of the refs of `metadata`.
