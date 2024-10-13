@@ -1,15 +1,17 @@
 [package]
-name = "karma_tech"
+name = "karmaTech"
 version = "1.0.0"
 authors = []
 
 [addresses]
-karma_tech="0xbd0cd18a41a50b7ff02c041f0e1b839af29fa867ff5cdd64e03e33005565da5b"
+karmaTech="0xbd0cd18a41a50b7ff02c041f0e1b839af29fa867ff5cdd64e03e33005565da5b"
 
-[dev-addresses]
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"
 
-[dependencies]
-AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", rev = "mainnet", subdir = "aptos-move/framework/aptos-framework" }
-AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", rev = "mainnet", subdir = "aptos-move/framework/aptos-token" }
-
-[dev-dependencies]
+[dependencies.AptosTokenObjects]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'mainnet'
+subdir = 'aptos-move/framework/aptos-token-objects'
