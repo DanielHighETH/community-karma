@@ -133,3 +133,4 @@ dist
 
 # aptos config
 /move/.aptos
+move/.aptos/config.yaml
