@@ -7,7 +7,6 @@ import {
   WalletConnectReturn,
 } from "../types/walletConnect";
 import crypto from "crypto";
-import { shortenAddress } from '@/lib/utils';
 
 const walletConnect = (): WalletConnectReturn => {
   const [walletAvailable, setWalletAvailable] = useState<boolean>(false);
