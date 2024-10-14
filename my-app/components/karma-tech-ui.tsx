@@ -19,7 +19,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MessageSquare, ThumbsUp, Share2, Search, Trash2, Flag, ThumbsDown, AlertTriangle, Clock } from "lucide-react";
+import {
+  MessageSquare,
+  ThumbsUp,
+  Share2,
+  Search,
+  Trash2,
+  Flag,
+  ThumbsDown,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import walletConnect from "@/hooks/walletConnect";
 import moment from "moment";
@@ -153,8 +163,8 @@ const users: User[] = [
     name: "ZachXBT",
     username: "zachxbt",
     avatar: "zachxbt.jpg",
-    bio: "Scam survivor turned 2D investigator"
-  }
+    bio: "Scam survivor turned 2D investigator",
+  },
 ];
 
 const SearchInput = ({
@@ -231,7 +241,9 @@ const ProfileView = memo(
     setSelectedUser: (user: User | null) => void;
   }) => {
     const [commentDialogOpen, setCommentDialogOpen] = useState(false);
-    const [reportDialogOpenNumber, setReportDialogOpenNumber] = useState<number | null>(null);
+    const [reportDialogOpenNumber, setReportDialogOpenNumber] = useState<
+      number | null
+    >(null);
     const [commentText, setCommentText] = useState("");
     const [reportReasonText, setReportReasonText] = useState("");
     const {
@@ -240,6 +252,7 @@ const ProfileView = memo(
       disconnectWallet,
       address,
       isLoggedIn,
+      sendTransaction,
     } = walletConnect();
 
     const handleCommentSubmit = () => {
@@ -269,15 +282,22 @@ const ProfileView = memo(
       setCommentDialogOpen(false);
     };
 
-    const handleReportSubmit = () => {
+    const handleReportSubmit = async () => {
       if (!reportReasonText.trim()) {
         console.error("Report reason cannot be empty");
         return;
       }
 
-      reportComment(reportDialogOpenNumber as number, reportReasonText);
-      setReportReasonText("");
-      setReportDialogOpenNumber(null);
+      const tx = await sendTransaction(
+        [reportDialogOpenNumber as number],
+        "0xf3e10fd929fe8465abb52e23e10794c25c0dcba8ef31e317518c62db71dadb50::karmaTech::report_note"
+      );
+
+      if (tx) {
+        reportComment(reportDialogOpenNumber as number, reportReasonText);
+        setReportReasonText("");
+        setReportDialogOpenNumber(null);
+      }
     };
 
     return (
@@ -304,7 +324,8 @@ const ProfileView = memo(
               <p className="text-gray-500 text-center mt-16 mb-16">
                 Loading...
               </p>
-            ) : comments.filter((c) => c.targetId === user.id && !c.reported).length === 0 ? (
+            ) : comments.filter((c) => c.targetId === user.id && !c.reported)
+                .length === 0 ? (
               <p className="text-gray-500 text-center mt-16 mb-16">
                 No notes found
               </p>
@@ -335,7 +356,7 @@ const ProfileView = memo(
                           <Share2 className="w-4 h-4" />
                           Share
                         </button>
-                        <button 
+                        <button
                           className="flex items-center gap-1 hover:text-primary transition-colors"
                           onClick={() => setReportDialogOpenNumber(comment.id)}
                         >
@@ -418,7 +439,10 @@ const ProfileView = memo(
               )}
             </DialogContent>
           </Dialog>
-          <Dialog open={reportDialogOpenNumber !== null} onOpenChange={() => setReportDialogOpenNumber(null)}>
+          <Dialog
+            open={reportDialogOpenNumber !== null}
+            onOpenChange={() => setReportDialogOpenNumber(null)}
+          >
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle className="text-2xl">Report a note</DialogTitle>
@@ -499,6 +523,7 @@ const OracleView = memo(
       disconnectWallet,
       address,
       isLoggedIn,
+      sendTransaction,
     } = walletConnect();
     const [vote, setVote] = useState<boolean | null>(null);
     const [voteAmount, setVoteAmount] = useState<number | null>(null);
@@ -507,120 +532,147 @@ const OracleView = memo(
     const handleVote = (id: number, vote: boolean) => () => {
       setVoteId(id);
       setVote(vote);
-    }
+    };
 
     const handleVoteNumberChange = (value: number) => {
       setVoteAmount(value);
-    }
+    };
 
-    const handleVoteSubmit = () => {
+    const handleVoteSubmit = async () => {
       if (voteId === null || vote === null) {
         console.error("Vote ID and vote value must be set");
         return;
       }
 
-      setComments(
-        comments?.map((c) => {
-          if (c.id === voteId) {
-            return { ...c, [vote ? "truthVotes" : "falseVotes"]: c[vote ? "truthVotes" : "falseVotes"] + (voteAmount as number)};
-          }
-          return c;
-        }) || null
+      const noteId = comments?.find((comment) => comment.id === voteId)?.id;
+      const amount = (voteAmount ?? 0) * 10 ** 7;
+      const voteBoolean = vote ? 1 : 0;
+
+      const tx = await sendTransaction(
+        [noteId, amount, voteBoolean],
+        "0xf3e10fd929fe8465abb52e23e10794c25c0dcba8ef31e317518c62db71dadb50::karmaTech::submit_vote"
       );
 
-      setVote(null);
-      setVoteId(null);
+      if (tx) {
+        setComments(
+          comments?.map((c) => {
+            if (c.id === voteId) {
+              return {
+                ...c,
+                [vote ? "truthVotes" : "falseVotes"]:
+                  c[vote ? "truthVotes" : "falseVotes"] +
+                  (voteAmount as number),
+              };
+            }
+            return c;
+          }) || null
+        );
 
-      fetch("/api/vote", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id: voteId, vote, voteAmount }),
-      });
-    }
+        setVote(null);
+        setVoteId(null);
+
+        fetch("/api/vote", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id: voteId, vote, voteAmount }),
+        });
+      }
+    };
 
     function getTimeLeft(timestamp: string) {
-      const reportTime = new Date(timestamp).getTime()
-      const now = new Date().getTime()
-      const timeLeft = reportTime + 72 * 60 * 60 * 1000 - now
+      const reportTime = new Date(timestamp).getTime();
+      const now = new Date().getTime();
+      const timeLeft = reportTime + 72 * 60 * 60 * 1000 - now;
 
       if (timeLeft <= 0) {
-        return "Voting closed"
+        return "Voting closed";
       }
 
-      const hours = Math.floor(timeLeft / (1000 * 60 * 60))
-      const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
+      const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+      const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
 
-      return `${hours}h ${minutes}m left`
+      return `${hours}h ${minutes}m left`;
     }
 
     return (
       <>
         <Dialog open={vote !== null} onOpenChange={() => setVote(null)}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle className="text-2xl">Choose number of {!vote ? 'False' : 'Truth'} votes</DialogTitle>
-                <DialogDescription className="text-lg">
-                  {!isLoggedIn && "Connect with your wallet to submit a vote"}
-                </DialogDescription>
-              </DialogHeader>
-              {walletAvailable ? (
-                <>
-                  {isLoggedIn ? (
-                    <>
-                        <NumberInput
-                          min={0}
-                          max={100000}
-                          step={1000}
-                          defaultValue={10000}
-                          onChange={handleVoteNumberChange}
-                        />
-                      <Button
-                        size="lg"
-                        onClick={handleVoteSubmit}
-                        className="text-lg w-full"
-                      >
-                        Submit Vote
-                      </Button>
-                      <p className="flex justify-between items-center">
-                        <span>Logged in as: {shortenAddress(address)}</span>
-                        <span
-                          onClick={disconnectWallet}
-                          className="cursor-pointer"
-                        >
-                          Logout
-                        </span>
-                      </p>
-                    </>
-                  ) : (
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">
+                Choose number of {!vote ? "False" : "Truth"} votes
+              </DialogTitle>
+              <DialogDescription className="text-lg">
+                {!isLoggedIn && "Connect with your wallet to submit a vote"}
+              </DialogDescription>
+            </DialogHeader>
+            {walletAvailable ? (
+              <>
+                {isLoggedIn ? (
+                  <>
+                    <NumberInput
+                      min={0}
+                      max={100000}
+                      step={1000}
+                      defaultValue={10000}
+                      onChange={handleVoteNumberChange}
+                    />
                     <Button
                       size="lg"
-                      onClick={connectWallet}
-                      className="text-lg"
+                      onClick={handleVoteSubmit}
+                      className="text-lg w-full"
                     >
-                      Connect with your wallet
+                      Submit Vote
                     </Button>
-                  )}
-                </>
-              ) : (
-                <p>Petra Wallet is not available. Please install it.</p>
-              )}
-            </DialogContent>
-          </Dialog>
+                    <p className="flex justify-between items-center">
+                      <span>Logged in as: {shortenAddress(address)}</span>
+                      <span
+                        onClick={disconnectWallet}
+                        className="cursor-pointer"
+                      >
+                        Logout
+                      </span>
+                    </p>
+                  </>
+                ) : (
+                  <Button size="lg" onClick={connectWallet} className="text-lg">
+                    Connect with your wallet
+                  </Button>
+                )}
+              </>
+            ) : (
+              <p>Petra Wallet is not available. Please install it.</p>
+            )}
+          </DialogContent>
+        </Dialog>
 
-          <ul className="grid grid-cols-1 gap-6 max-h-[40rem] overflow-y-auto">
-            {
-              !comments ? (
-                  <p className="text-gray-500 text-center mt-16 mb-16">
-                    Loading...
-                  </p>
-                ) : comments.filter((comment) => comment.reported && !moment().local().subtract(3, 'days').isAfter(moment(comment.reportTimestamp).local())).length === 0 ? (
-                  <p className="text-gray-500 text-center mt-16 mb-16">
-                    No notes found
-                  </p>
-                ) : 
-              comments?.filter((comment) => comment.reported && !moment().local().subtract(3, 'days').isAfter(moment(comment.reportTimestamp).local())).map((comment) => {
+        <ul className="grid grid-cols-1 gap-6 max-h-[40rem] overflow-y-auto">
+          {!comments ? (
+            <p className="text-gray-500 text-center mt-16 mb-16">Loading...</p>
+          ) : comments.filter(
+              (comment) =>
+                comment.reported &&
+                !moment()
+                  .local()
+                  .subtract(3, "days")
+                  .isAfter(moment(comment.reportTimestamp).local())
+            ).length === 0 ? (
+            <p className="text-gray-500 text-center mt-16 mb-16">
+              No notes found
+            </p>
+          ) : (
+            comments
+              ?.filter(
+                (comment) =>
+                  comment.reported &&
+                  !moment()
+                    .local()
+                    .subtract(3, "days")
+                    .isAfter(moment(comment.reportTimestamp).local())
+              )
+              .map((comment) => {
                 const author = users.find((u) => u.id === comment.targetId);
                 return (
                   <li
@@ -628,49 +680,71 @@ const OracleView = memo(
                     className="bg-gray-50 rounded-lg shadow-sm overflow-hidden"
                   >
                     <div className="px-4">
-                      <div className='flex'>
-                        <img className='m-auto w-[15rem] h-[15rem] object-cover' src={author?.avatar} alt={author?.name} />
-                      <div className='w-[70%]'>
-                        <CardContent className='pb-0  pt-8'>
-                          <div className="mb-4">
-                            <h3 className="font-semibold mb-2 text-sm">Original Note On {author?.name}'s profile:</h3>
-                            <div className="border-l-4 border-gray-300 pl-4 py-2 bg-gray-100 rounded">
-                              <p className="text-md text-gray-600">{comment?.content}</p>
+                      <div className="flex">
+                        <img
+                          className="m-auto w-[15rem] h-[15rem] object-cover"
+                          src={author?.avatar}
+                          alt={author?.name}
+                        />
+                        <div className="w-[70%]">
+                          <CardContent className="pb-0  pt-8">
+                            <div className="mb-4">
+                              <h3 className="font-semibold mb-2 text-sm">
+                                Original Note On {author?.name}'s profile:
+                              </h3>
+                              <div className="border-l-4 border-gray-300 pl-4 py-2 bg-gray-100 rounded">
+                                <p className="text-md text-gray-600">
+                                  {comment?.content}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="mb-4">
-                            <h3 className="font-semibold mb-2 text-sm">Report Reason:</h3>
-                            <p className="text-md">{comment?.reportReason}</p>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="flex justify-between items-center">
-                          <div className="flex space-x-4">
-                            <Button variant="outline" className="flex items-center space-x-2" onClick={handleVote(comment?.id, true)}>
-                              <ThumbsUp className="w-4 h-4" />
-                              <span>Truth ({comment?.truthVotes || 0})</span>
-                            </Button>
-                            <Button variant="outline" className="flex items-center space-x-2"onClick={handleVote(comment?.id, false)}>
-                              <ThumbsDown className="w-4 h-4" />
-                              <span>False ({comment?.falseVotes || 0})</span>
-                            </Button>
-                          </div>
-                          <div className="flex items-center">
-                            <Clock className="w-4 h-4 mr-2" />
-                            <span>{getTimeLeft(comment?.reportTimestamp as string)}</span>
-                          </div>
-                        </CardFooter>
-                      </div>
+                            <div className="mb-4">
+                              <h3 className="font-semibold mb-2 text-sm">
+                                Report Reason:
+                              </h3>
+                              <p className="text-md">{comment?.reportReason}</p>
+                            </div>
+                          </CardContent>
+                          <CardFooter className="flex justify-between items-center">
+                            <div className="flex space-x-4">
+                              <Button
+                                variant="outline"
+                                className="flex items-center space-x-2"
+                                onClick={handleVote(comment?.id, true)}
+                              >
+                                <ThumbsUp className="w-4 h-4" />
+                                <span>Truth ({comment?.truthVotes || 0})</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="flex items-center space-x-2"
+                                onClick={handleVote(comment?.id, false)}
+                              >
+                                <ThumbsDown className="w-4 h-4" />
+                                <span>False ({comment?.falseVotes || 0})</span>
+                              </Button>
+                            </div>
+                            <div className="flex items-center">
+                              <Clock className="w-4 h-4 mr-2" />
+                              <span>
+                                {getTimeLeft(
+                                  comment?.reportTimestamp as string
+                                )}
+                              </span>
+                            </div>
+                          </CardFooter>
+                        </div>
                       </div>
                     </div>
                   </li>
                 );
-              }
-            )}
-          </ul>
-    </>
-      
+              })
+          )}
+        </ul>
+      </>
     );
-  });
+  }
+);
 
 export function KarmaTechUi() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -679,9 +753,7 @@ export function KarmaTechUi() {
   const [displayUsers, setDisplayUsers] = useState<User[]>([]);
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [activeView, setActiveView] = useState("community");
-  const {
-      address,
-    } = walletConnect();
+  const { address } = walletConnect();
 
   useEffect(() => {
     const shuffleArray = (array: any[]) => {
@@ -716,15 +788,15 @@ export function KarmaTechUi() {
           reportReason: c.report_reason,
           reportTimestamp: c.report_timestamp,
           truthVotes: c.truth_votes,
-          falseVotes: c.false_votes
+          falseVotes: c.false_votes,
         }));
         setComments(comments);
       });
   }, []);
 
   const handleViewChange = (view: string) => {
-    setActiveView(view)
-  }
+    setActiveView(view);
+  };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -768,12 +840,19 @@ export function KarmaTechUi() {
 
   const reportComment = (id: number, reason: string) => {
     setComments(
-      (prevComments) => prevComments?.map((c) => {
-        if (c.id === id) {
-          return { ...c, reported: true, reportedBy: address as string, reportReason: reason, reportTimestamp: new Date().toISOString() };
-        }
-        return c;
-      }) || null
+      (prevComments) =>
+        prevComments?.map((c) => {
+          if (c.id === id) {
+            return {
+              ...c,
+              reported: true,
+              reportedBy: address as string,
+              reportReason: reason,
+              reportTimestamp: new Date().toISOString(),
+            };
+          }
+          return c;
+        }) || null
     );
 
     fetch("/api/report-comment", {
@@ -799,11 +878,13 @@ export function KarmaTechUi() {
           />
         ) : (
           <>
-            <div className='b-6 flex text-black justify-between'>
-             <div className="flex items-center bg-white rounded-md shadow-lg mb-6">
+            <div className="b-6 flex text-black justify-between">
+              <div className="flex items-center bg-white rounded-md shadow-lg mb-6">
                 <button
                   className={`px-4 py-2 rounded-l-md transition-colors duration-300 ease-in-out ${
-                    activeView === "community" ? "bg-primary text-primary-foreground" : "text-black"
+                    activeView === "community"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-black"
                   }`}
                   onClick={() => handleViewChange("community")}
                 >
@@ -811,7 +892,9 @@ export function KarmaTechUi() {
                 </button>
                 <button
                   className={`px-4 py-2 rounded-r-md transition-colors duration-300 ease-in-out ${
-                    activeView === "voting" ? "bg-primary text-primary-foreground" : "text-black"
+                    activeView === "voting"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-black"
                   }`}
                   onClick={() => handleViewChange("voting")}
                 >
@@ -844,25 +927,27 @@ export function KarmaTechUi() {
                       onSelectUser={setSelectedUser}
                     />
                   </CardContent>
-                </> ) : (
-                  <>
-                    <CardHeader>
-                      <CardTitle className="text-4xl font-bold text-center mt-4">
-                        karma.tech
-                      </CardTitle>
-                      <CardDescription className="text-xl text-center">
-                        Cast Votes with $KARMA, Help Determine the Truth, Get Rewarded
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <OracleView
-                        users={users}
-                        comments={comments}
-                        setComments={setComments}
-                      />
-                    </CardContent>
-                  </>
-                  )}
+                </>
+              ) : (
+                <>
+                  <CardHeader>
+                    <CardTitle className="text-4xl font-bold text-center mt-4">
+                      karma.tech
+                    </CardTitle>
+                    <CardDescription className="text-xl text-center">
+                      Cast Votes with $KARMA, Help Determine the Truth, Get
+                      Rewarded
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <OracleView
+                      users={users}
+                      comments={comments}
+                      setComments={setComments}
+                    />
+                  </CardContent>
+                </>
+              )}
             </Card>
           </>
         )}

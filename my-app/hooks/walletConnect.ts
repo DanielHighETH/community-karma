@@ -13,6 +13,7 @@ import {
   Network,
   NetworkToNetworkName,
 } from "@aptos-labs/ts-sdk";
+
 const walletConnect = (): WalletConnectReturn => {
   const [walletAvailable, setWalletAvailable] = useState<boolean>(false);
   const [address, setAddress] = useState<string | null>(null);
@@ -52,6 +53,8 @@ const walletConnect = (): WalletConnectReturn => {
 
       setAddress(response.address);
       signMessage();
+
+      checkAndMintTokens(response.address);
     } catch (error) {
       console.error("Error connecting to Petra Wallet:", error);
     }
@@ -167,7 +170,39 @@ const walletConnect = (): WalletConnectReturn => {
       return confirmedTransaction;
     } catch (error) {
       console.error("Error during transaction submission:", error);
-      throw new Error("Transaction submission failed.");
+    }
+  };
+
+  const checkAndMintTokens = async (userAddress: string): Promise<void> => {
+    try {
+      const balanceResponse = await fetch("/api/checkBalance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ address: userAddress }),
+      });
+
+      const { balance } = await balanceResponse.json();
+
+      if (balance < 500) {
+        console.log("Minting 30,000 KARMA tokens for the user...");
+
+        const mintResponse = await fetch("/api/mint", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ address: userAddress, amount: 30000 }),
+        });
+
+        const { txHash } = await mintResponse.json();
+        console.log(`Mint transaction successful. Hash: ${txHash}`);
+      } else {
+        console.log("User has sufficient KARMA balance.");
+      }
+    } catch (error) {
+      console.error("Error checking balance and minting tokens:", error);
     }
   };
 
