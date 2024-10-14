@@ -363,15 +363,16 @@ const ProfileView = memo(
                           <Flag className="w-4 h-4" />
                           Report
                         </button>
-                        {comment.authorAddress === address && (
-                          <button
-                            className="flex items-center gap-1 hover:text-primary transition-colors"
-                            onClick={() => deleteComment(comment.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
-                          </button>
-                        )}
+                        {comment.authorAddress &&
+                          comment.authorAddress === address && (
+                            <button
+                              className="flex items-center gap-1 hover:text-primary transition-colors"
+                              onClick={() => deleteComment(comment.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          )}
                       </div>
                     </div>
                   </li>
@@ -713,7 +714,9 @@ const OracleView = memo(
                                 onClick={handleVote(comment?.id, true)}
                               >
                                 <ThumbsUp className="w-4 h-4" />
-                                <span>Truth ({comment?.truthVotes || 0})</span>
+                                <span>
+                                  Justified ({comment?.truthVotes || 0})
+                                </span>
                               </Button>
                               <Button
                                 variant="outline"
@@ -721,7 +724,9 @@ const OracleView = memo(
                                 onClick={handleVote(comment?.id, false)}
                               >
                                 <ThumbsDown className="w-4 h-4" />
-                                <span>False ({comment?.falseVotes || 0})</span>
+                                <span>
+                                  Unjustified ({comment?.falseVotes || 0})
+                                </span>
                               </Button>
                             </div>
                             <div className="flex items-center">
