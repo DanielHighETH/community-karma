@@ -10,4 +10,5 @@ export interface WalletConnectReturn {
   disconnectWallet: () => Promise<void>;
   address: string | null;
   isLoggedIn: boolean;
+  sendTransaction: (txArguments: any[], functionName: string) => Promise<any>;
 }

@@ -7,7 +7,12 @@ import {
   WalletConnectReturn,
 } from "../types/walletConnect";
 import crypto from "crypto";
-
+import {
+  Aptos,
+  AptosConfig,
+  Network,
+  NetworkToNetworkName,
+} from "@aptos-labs/ts-sdk";
 const walletConnect = (): WalletConnectReturn => {
   const [walletAvailable, setWalletAvailable] = useState<boolean>(false);
   const [address, setAddress] = useState<string | null>(null);
@@ -29,7 +34,7 @@ const walletConnect = (): WalletConnectReturn => {
 
       const data = await response.json();
 
-      if (data.loggedIn) {        
+      if (data.loggedIn) {
         setAddress(data.address);
         setIsLoggedIn(true);
       } else {
@@ -44,7 +49,7 @@ const walletConnect = (): WalletConnectReturn => {
   const connectWallet = async (): Promise<void> => {
     try {
       const response = await window.aptos.connect();
-      
+
       setAddress(response.address);
       signMessage();
     } catch (error) {
@@ -60,13 +65,12 @@ const walletConnect = (): WalletConnectReturn => {
       const response: SignedMessageResponse = await window.aptos.signMessage({
         message,
         nonce,
-      });      
+      });
 
       await verifyMessage(response);
     } catch (error: any) {
       console.error("Error signing the message:", error);
       console.log(error.message);
-      
     }
   };
 
@@ -81,7 +85,7 @@ const walletConnect = (): WalletConnectReturn => {
         new TextEncoder().encode(response.fullMessage),
         new HexString(response.signature).toUint8Array(),
         new HexString(key).toUint8Array()
-      );      
+      );
 
       if (verified) {
         await generateJWT(response.address);
@@ -135,12 +139,45 @@ const walletConnect = (): WalletConnectReturn => {
     }
   };
 
+  const APTOS_NETWORK = NetworkToNetworkName[Network.TESTNET];
+  const aptosClientConfig = new AptosConfig({ network: APTOS_NETWORK });
+  const aptosClient = new Aptos(aptosClientConfig);
+
+  const sendTransaction = async (
+    txArguments: any[],
+    functionName: string
+  ): Promise<any> => {
+    const transactionPayload = {
+      arguments: txArguments,
+      function: functionName,
+      type: "entry_function_payload",
+      type_arguments: [],
+    };
+
+    try {
+      const pendingTx = await window.aptos.signAndSubmitTransaction(
+        transactionPayload
+      );
+
+      const confirmedTransaction =
+        await aptosClient.transaction.waitForTransaction({
+          transactionHash: pendingTx.hash,
+        });
+
+      return confirmedTransaction;
+    } catch (error) {
+      console.error("Error during transaction submission:", error);
+      throw new Error("Transaction submission failed.");
+    }
+  };
+
   return {
     walletAvailable,
     connectWallet,
     disconnectWallet,
     address,
     isLoggedIn,
+    sendTransaction,
   };
 };
 
