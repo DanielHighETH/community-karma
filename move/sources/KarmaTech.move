@@ -29,7 +29,6 @@ module karmaTech::karmaTech {
     /// Struct to store report information
     struct ReportInfo has copy, drop, store {
         reporter: address,
-        reason_id: u64,
     }
 
     /// Struct to store vote information
@@ -44,13 +43,8 @@ module karmaTech::karmaTech {
         min_stake_amount: u64,
         apr_reward: u64,
         reports: table::Table<u64, vector<ReportInfo>>,
-        votes: table::Table<u128, vector<VoteInfo>>,
-        payouts_processed: table::Table<u128, bool>,
-    }
-
-    /// Combine note_id and reason_id into a single u128 key.
-    fun create_vote_key(note_id: u64, reason_id: u64): u128 {
-        ((note_id as u128) << 64) | (reason_id as u128)
+        votes: table::Table<u64, vector<VoteInfo>>, 
+        payouts_processed: table::Table<u64, bool>,
     }
 
     /// Initialize metadata object and store the refs.
@@ -73,8 +67,8 @@ module karmaTech::karmaTech {
 
         // Create tables to store reports and votes.
         let reports_table = table::new<u64, vector<ReportInfo>>();
-        let votes_table = table::new<u128, vector<VoteInfo>>();
-        let payouts_table = table::new<u128, bool>();
+        let votes_table = table::new<u64, vector<VoteInfo>>();
+        let payouts_table = table::new<u64, bool>();
 
         move_to(admin, ModuleData {
             mint_ref,
@@ -127,16 +121,13 @@ module karmaTech::karmaTech {
 
     #[view]
     /// Function to view the total staked tokens for truth and false votes on a reported note.
-    public fun view_staked_tokens(note_id: u64, reason_id: u64): (u64, u64) acquires ModuleData {
+    public fun view_staked_tokens(note_id: u64): (u64, u64) acquires ModuleData {
         let module_data = borrow_global<ModuleData>(@karmaTech);
 
-        // Combine note_id and reason_id into a single u128 key.
-        let vote_key = create_vote_key(note_id, reason_id);
+        // Ensure that votes exist for the given note.
+        assert!(table::contains(&module_data.votes, note_id), ENOT_FOUND);
 
-        // Ensure that votes exist for the given note and reason.
-        assert!(table::contains(&module_data.votes, vote_key), ENOT_FOUND);
-
-        let votes = table::borrow(&module_data.votes, vote_key);
+        let votes = table::borrow(&module_data.votes, note_id);
         let votes_len = vector::length(votes);
 
         // Initialize counters for truth and false stakes
@@ -244,7 +235,7 @@ module karmaTech::karmaTech {
     }
 
     /// Function for users to report a note by staking KARMA tokens.
-    public entry fun report_note(reporter: &signer, note_id: u64, reason_id: u64) acquires ModuleData, ManagedFungibleAsset {
+    public entry fun report_note(reporter: &signer, note_id: u64) acquires ModuleData, ManagedFungibleAsset {
         let reporter_address = signer::address_of(reporter);
         let asset = get_metadata();
 
@@ -271,7 +262,6 @@ module karmaTech::karmaTech {
         // Add the new report.
         let report_info = ReportInfo {
             reporter: reporter_address,
-            reason_id,
         };
         vector::push_back(reports, report_info);
     }
@@ -280,10 +270,9 @@ module karmaTech::karmaTech {
     /// Parameters:
     /// - reporter: The signer submitting the vote.
     /// - note_id: The note being voted on.
-    /// - reason_id: The reason for the vote.
     /// - amount: The amount of tokens staked on the vote.
     /// - vote: 1 for truth, 0 for false.
-    public entry fun submit_vote(reporter: &signer, note_id: u64, reason_id: u64, amount: u64, vote: u8) acquires ModuleData, ManagedFungibleAsset {
+    public entry fun submit_vote(reporter: &signer, note_id: u64, amount: u64, vote: u8) acquires ModuleData, ManagedFungibleAsset {
         let reporter_address = signer::address_of(reporter);
         let asset = get_metadata();
 
@@ -308,16 +297,13 @@ module karmaTech::karmaTech {
             amount,
         };
 
-        // Combine note_id and reason_id into a single u128 key.
-        let vote_key = create_vote_key(note_id, reason_id);
-
-        // Get existing votes for the (note_id, reason_id), or initialize a new vector.
-        let votes = if (table::contains(&module_data.votes, vote_key)) {
-            table::borrow_mut(&mut module_data.votes, vote_key)
+        // Get existing votes for the note_id, or initialize a new vector.
+        let votes = if (table::contains(&module_data.votes, note_id)) {
+            table::borrow_mut(&mut module_data.votes, note_id)
         } else {
             let new_votes = vector::empty<VoteInfo>();
-            table::add(&mut module_data.votes, vote_key, new_votes);
-            table::borrow_mut(&mut module_data.votes, vote_key)
+            table::add(&mut module_data.votes, note_id, new_votes);
+            table::borrow_mut(&mut module_data.votes, note_id)
         };
 
         // Add the new vote.
@@ -326,8 +312,7 @@ module karmaTech::karmaTech {
 
     /// Function to handle payouts after voting is closed.
     /// - note_id: The ID of the note being voted on.
-    /// - reason_id: The reason for the vote.
-    public entry fun payout(owner: &signer, note_id: u64, reason_id: u64) acquires ModuleData, ManagedFungibleAsset {
+    public entry fun payout(owner: &signer, note_id: u64) acquires ModuleData, ManagedFungibleAsset {
         let module_data = borrow_global_mut<ModuleData>(@karmaTech);
         let asset = get_metadata();
         let managed_fungible_asset = borrow_global<ManagedFungibleAsset>(object::object_address(&asset));
@@ -335,21 +320,18 @@ module karmaTech::karmaTech {
         // Ensure that only the owner can call this function.
         assert!(object::is_owner(asset, signer::address_of(owner)), error::permission_denied(ENOT_OWNER));
 
-        // Combine note_id and reason_id into a single u128 key.
-        let vote_key = create_vote_key(note_id, reason_id);
-
-        // Ensure that votes exist for the given note and reason.
-        assert!(table::contains(&module_data.votes, vote_key), ENOT_FOUND);
+        // Ensure that votes exist for the given note.
+        assert!(table::contains(&module_data.votes, note_id), ENOT_FOUND);
 
         // Check if the payout has already been processed
-        if (table::contains(&module_data.payouts_processed, vote_key)) {
+        if (table::contains(&module_data.payouts_processed, note_id)) {
             abort(ENOT_FOUND)
         };
 
         // Mark the payout as processed
-        table::add(&mut module_data.payouts_processed, vote_key, true);
+        table::add(&mut module_data.payouts_processed, note_id, true);
 
-        let votes = table::borrow(&module_data.votes, vote_key);
+        let votes = table::borrow(&module_data.votes, note_id);
         let votes_len = vector::length(votes);
 
         let total_truth_stake = 0u64;
