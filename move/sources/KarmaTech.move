@@ -56,8 +56,8 @@ module karmaTech::karmaTech {
             utf8(b"KARMA Token"), /* name */
             utf8(ASSET_SYMBOL), /* symbol */
             7, /* decimals */
-            utf8(b"http://example.com/favicon.ico"), /* icon */
-            utf8(b"http://community-karma.vercel.app"), /* project */
+            utf8(b"https://community-karma.vercel.app/favicon.ico"), /* icon */
+            utf8(b"https://community-karma.vercel.app/"), /* project */
         );
 
         // Create mint/burn/transfer refs to allow the creator to manage the fungible asset.

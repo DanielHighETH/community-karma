@@ -97,7 +97,7 @@ async function tokenBalance(address: string): Promise<number> {
     const karmaResource = resources.find(
       (resource) =>
         resource.metadata?.asset_type ===
-        "0x33bc5f8101c8a226cf2b5ec15db980064422ae5dec1ade5cf065794db63c4c50"
+        "0xa0a40d3a987d6f1efabf36972104179c634668aee7eabac9e05c589ab2f79f5d"
     );
 
     if (!karmaResource) {

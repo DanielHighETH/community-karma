@@ -64,7 +64,7 @@ const users: User[] = [
     id: 1,
     name: "Keyboard Monkey -KBM-",
     username: "KeyboardMonkey3",
-    avatar: "KeyboardMonkey3.jpg",
+    avatar: "keyboardmonkey.jpg",
     bio: `🦍 multi-disciplinary degenerate. not financial advice, not real advice. advisor @evincowinerydao, @tensor_hq, co-host @rektradio_`,
   },
   {
@@ -290,7 +290,7 @@ const ProfileView = memo(
 
       const tx = await sendTransaction(
         [reportDialogOpenNumber as number],
-        "0xf3e10fd929fe8465abb52e23e10794c25c0dcba8ef31e317518c62db71dadb50::karmaTech::report_note"
+        "0xebf8edea620fe20a1d6f2ad5ead3588b2cfad94b5ac1d676eff14bb1e9121efe::karmaTech::report_note"
       );
 
       if (tx) {
@@ -550,7 +550,7 @@ const OracleView = memo(
 
       const tx = await sendTransaction(
         [noteId, amount, voteBoolean],
-        "0xf3e10fd929fe8465abb52e23e10794c25c0dcba8ef31e317518c62db71dadb50::karmaTech::submit_vote"
+        "0xebf8edea620fe20a1d6f2ad5ead3588b2cfad94b5ac1d676eff14bb1e9121efe::karmaTech::submit_vote"
       );
 
       if (tx) {
