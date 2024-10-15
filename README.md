@@ -34,4 +34,4 @@ Anyone can dispute a note's accuracy by connecting a wallet and staking tokens, 
 
 Searchers can report notes they believe to be untruthful, while validators work to establish the objective truth. Both groups compete in their category to earn APR and uncover the truth.
 
-Check out our [Demo](https://www.youtube.com/@DanielHighETH) for UI walkthrough and more.
+Check out our [Demo](https://www.youtube.com/watch?v=L8pO0j592uE) for UI walkthrough and more.
